@@ -29,7 +29,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: sys }] },
         contents: [{ role: 'user', parts: [{ text: `학생 ${studentNum}번, 점수 ${score}/5\n\n대화:\n${conv}` }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 800 }
+        generationConfig: { temperature: 0.7, maxOutputTokens: 1500 }
       })
     }
   );
@@ -50,7 +50,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: '영어 이미지 프롬프트를 자연스러운 한국어로 번역해주세요. 번역만 출력.' }] },
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 500 }
+        generationConfig: { temperature: 0.3, maxOutputTokens: 1000 }
       })
     }
   );
