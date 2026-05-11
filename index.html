@@ -8,6 +8,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
 <script src="config.js" onerror="window.GEMINI_API_KEY=undefined"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -134,9 +138,15 @@ footer span{color:rgba(255,255,255,.8);font-weight:500}
 
 <nav>
   <div class="logo"><div class="logo-dot"></div>감상 → 이미지</div>
-  <div style="display:flex;gap:8px">
+  <div style="display:flex;gap:8px;align-items:center">
     <button class="btn btn-out" onclick="resetApp()">처음으로</button>
     <button class="btn btn-dark hidden" id="gen-btn" onclick="generateForSelected()">✨ 이미지 만들기</button>
+    <a class="btn btn-out" id="dash-btn" href="dashboard.html" style="display:none;text-decoration:none">📊 대시보드</a>
+    <div id="user-info" style="display:none;align-items:center;gap:8px">
+      <img id="user-photo" style="width:28px;height:28px;border-radius:50%;object-fit:cover" src="" alt="">
+      <span id="user-name" style="font-size:14px;font-weight:500"></span>
+    </div>
+    <button class="btn btn-out" id="auth-btn" onclick="handleAuth()">로그인</button>
   </div>
 </nav>
 
@@ -222,6 +232,77 @@ footer span{color:rgba(255,255,255,.8);font-weight:500}
 <div class="lightbox" id="lightbox" onclick="this.classList.remove('on')"><img id="lightbox-img"></div>
 
 <script>
+// Firebase 초기화
+firebase.initializeApp({
+  apiKey: "AIzaSyBGQDVVPuW4-eTUuazuiBpHCW7cZSKy6Pc",
+  authDomain: "metacog-unicorn-imagegen.firebaseapp.com",
+  projectId: "metacog-unicorn-imagegen",
+  storageBucket: "metacog-unicorn-imagegen.firebasestorage.app",
+  messagingSenderId: "911788920186",
+  appId: "1:911788920186:web:d1acd902d81a9a8d199ac3"
+});
+const auth = firebase.auth();
+const db = firebase.firestore();
+const storage = firebase.storage();
+let currentUser = null;
+
+auth.onAuthStateChanged(user => {
+  currentUser = user;
+  const authBtn = document.getElementById('auth-btn');
+  const dashBtn = document.getElementById('dash-btn');
+  const userInfo = document.getElementById('user-info');
+  if (user) {
+    authBtn.textContent = '로그아웃';
+    dashBtn.style.display = 'inline-flex';
+    userInfo.style.display = 'flex';
+    document.getElementById('user-photo').src = user.photoURL || '';
+    document.getElementById('user-name').textContent = user.displayName || user.email;
+  } else {
+    authBtn.textContent = '로그인';
+    dashBtn.style.display = 'none';
+    userInfo.style.display = 'none';
+  }
+});
+
+function handleAuth() {
+  if (currentUser) {
+    auth.signOut();
+  } else {
+    auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e => toast('로그인 실패: ' + e.message));
+  }
+}
+
+function base64ToBlob(b64, mime) {
+  const bytes = atob(b64);
+  const arr = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+async function saveResult(s, promptEn, promptKo, img) {
+  if (!currentUser) return;
+  try {
+    const path = `users/${currentUser.uid}/${Date.now()}_${s.num}.png`;
+    const snap = await storage.ref(path).put(base64ToBlob(img.data, img.mime));
+    const imageUrl = await snap.ref.getDownloadURL();
+    await db.collection('users').doc(currentUser.uid).collection('results').add({
+      studentNum: s.num,
+      label: s.label,
+      score: s.score,
+      promptEn,
+      promptKo,
+      imageUrl,
+      imagePath: path,
+      memo: '',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    toast('☁️ 저장 완료!');
+  } catch(e) {
+    console.error('저장 오류:', e);
+    toast('저장 실패 — 로그인 상태를 확인해주세요');
+  }
+}
+
 // config.js에서 키 로드
 if(typeof GEMINI_API_KEY !== 'undefined' && GEMINI_API_KEY && !GEMINI_API_KEY.includes('YOUR_')) {
   document.getElementById('api-key').value = GEMINI_API_KEY;
@@ -404,6 +485,7 @@ async function generateForSelected() {
     s._prompt = promptEn;
     s._promptKo = promptKo;
     s._img = img;
+    saveResult(s, promptEn, promptKo, img);
     document.getElementById('img-frame').innerHTML=`<img src="data:${img.mime};base64,${img.data}" alt="생성 이미지" onclick="openLightbox(this.src)" style="cursor:zoom-in">`;
     document.getElementById('dl-wrap').innerHTML=`<button class="btn btn-dark" style="width:100%;padding:13px" onclick="downloadImage()">💾 이미지 다운로드</button>`;
     // 카드 썸네일도 업데이트
@@ -560,12 +642,14 @@ async function generateAll() {
     const st = document.getElementById(`status-${i}`);
     st.className='card-status wait'; st.textContent='⏳ 생성 중...';
     try {
-      const { en: prompt } = await extractPrompt(s, apiKey);
+      const { en: prompt, ko: promptKo } = await extractPrompt(s, apiKey);
       const img = await generateImage(prompt, apiKey);
       document.getElementById(`thumb-${i}`).innerHTML = `<img src="data:${img.mime};base64,${img.data}">`;
       students[i]._img = img;
       students[i]._prompt = prompt;
+      students[i]._promptKo = promptKo;
       st.className='card-status done'; st.textContent='✅ 완료';
+      saveResult(students[i], prompt, promptKo, img);
     } catch(e) {
       st.className='card-status fail'; st.textContent='❌ '+e.message.slice(0,30);
     }
