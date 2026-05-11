@@ -147,8 +147,6 @@ import { PointerLockControls } from 'three/addons/controls/PointerLockControls.j
 
 /* ── constants ── */
 const W=18, H=4.2, D=18;
-const PW=1.5, PH=1.5, PY=2.0;
-const GAP=0.015;
 const SPEED=5;
 const scoreLabel={0:'⏸️',1:'😴',2:'🤔',3:'😊',4:'🌟',5:'🏆',6:'💎',7:'🔥',8:'✨',9:'🌈',10:'👑'};
 const scoreText={0:'미완료',1:'아쉬웠어요',2:'조금 더!',3:'잘했어요!',4:'멋져요!',5:'훌륭해요!',6:'대단해요!',7:'놀라워요!',8:'최고예요!',9:'완벽해요!',10:'전설이에요!'};
@@ -315,23 +313,29 @@ function buildRoom(label){
 
 /* ── painting slots ── */
 function getSlots(n){
-  // 4 walls: north, east, south, west
-  const walls=[
-    {p:(o)=>new THREE.Vector3(o, PY,-D/2+GAP),  ry:0,          labelOff:new THREE.Vector3(0,0,0.01)},
-    {p:(o)=>new THREE.Vector3(W/2-GAP, PY, o),  ry:-Math.PI/2, labelOff:new THREE.Vector3(0,0,0.01)},
-    {p:(o)=>new THREE.Vector3(o, PY, D/2-GAP),  ry:Math.PI,    labelOff:new THREE.Vector3(0,0,0.01)},
-    {p:(o)=>new THREE.Vector3(-W/2+GAP, PY, o), ry:Math.PI/2,  labelOff:new THREE.Vector3(0,0,0.01)},
+  // 그림 수에 따라 크기·간격 자동 결정
+  const ps = n<=20 ? 1.4 : n<=56 ? 1.2 : 1.0;
+  const sp = ps + 0.9; // 중심 간격
+  const perRow = Math.floor((D-2)/sp); // 벽 하나당 한 행에 걸 수 있는 수
+
+  const wallDefs=[
+    {ry:0,          pos:(o,y)=>new THREE.Vector3(o,y,-D/2+0.015)},
+    {ry:-Math.PI/2, pos:(o,y)=>new THREE.Vector3(W/2-0.015,y,o)},
+    {ry:Math.PI,    pos:(o,y)=>new THREE.Vector3(o,y,D/2-0.015)},
+    {ry:Math.PI/2,  pos:(o,y)=>new THREE.Vector3(-W/2+0.015,y,o)},
   ];
+
+  // 1열로 부족하면 2열 (아래 y=1.4, 위 y=3.2)
+  const rowYs = n <= perRow*4 ? [2.1] : [1.4, 3.2];
+
   const slots=[];
-  const maxPerWall=Math.floor((D-2)/2.6);
-  const perWall=Math.ceil(n/4);
-  let assigned=0;
-  for(const wall of walls){
-    if(assigned>=n) break;
-    const cnt=Math.min(perWall,n-assigned,maxPerWall);
-    const sp=Math.min(2.6,(D-2)/Math.max(cnt,1));
-    const start=-(cnt-1)*sp/2;
-    for(let i=0;i<cnt;i++){slots.push({wall,offset:start+i*sp});assigned++;}
+  outer: for(const y of rowYs){
+    for(const wall of wallDefs){
+      if(slots.length>=n) break outer;
+      const cnt=Math.min(perRow, n-slots.length);
+      const start=-(cnt-1)*sp/2;
+      for(let i=0;i<cnt;i++) slots.push({wall, offset:start+i*sp, y, ps});
+    }
   }
   return slots;
 }
@@ -368,29 +372,24 @@ function makePlaceholderTex(){
 }
 
 function placePainting(data, tex, slot){
-  const {wall,offset}=slot;
-  const pos=wall.p(offset);
+  const {wall, offset, y, ps}=slot;
+  const pos=wall.pos(offset, y);
 
-  // Frame (dark wood box)
-  const fp=0.1;
   const frame=new THREE.Mesh(
-    new THREE.BoxGeometry(PW+fp,PH+fp,0.05),
+    new THREE.BoxGeometry(ps+0.08, ps+0.08, 0.05),
     new THREE.MeshStandardMaterial({color:0x130f08,roughness:0.45,metalness:0.25})
   );
   frame.position.copy(pos); frame.rotation.y=wall.ry; scene.add(frame);
 
-  // Inner mount (white matting)
-  const mp=0.06;
   const mount=new THREE.Mesh(
-    new THREE.PlaneGeometry(PW+mp,PH+mp),
+    new THREE.PlaneGeometry(ps+0.05, ps+0.05),
     new THREE.MeshStandardMaterial({color:0xfff8f0,roughness:1})
   );
   mount.position.copy(pos); mount.rotation.y=wall.ry;
   nudge(mount, wall.ry, 0.028); scene.add(mount);
 
-  // Painting
   const paint=new THREE.Mesh(
-    new THREE.PlaneGeometry(PW,PH),
+    new THREE.PlaneGeometry(ps, ps),
     new THREE.MeshStandardMaterial({map:tex,roughness:0.85,metalness:0,emissive:new THREE.Color(0x000000),emissiveIntensity:0})
   );
   paint.position.copy(pos); paint.rotation.y=wall.ry;
@@ -398,14 +397,12 @@ function placePainting(data, tex, slot){
   paint.userData={isPaint:true,data};
   scene.add(paint); paintMeshes.push(paint);
 
-  // Label
-  const lTex=makeLabel(data);
   const lMesh=new THREE.Mesh(
-    new THREE.PlaneGeometry(PW,0.24),
-    new THREE.MeshBasicMaterial({map:lTex,transparent:true})
+    new THREE.PlaneGeometry(ps, 0.22),
+    new THREE.MeshBasicMaterial({map:makeLabel(data),transparent:true})
   );
   lMesh.position.copy(pos); lMesh.rotation.y=wall.ry;
-  lMesh.position.y=pos.y-PH/2-0.2;
+  lMesh.position.y=pos.y-ps/2-0.17;
   nudge(lMesh, wall.ry, 0.03); scene.add(lMesh);
 }
 
