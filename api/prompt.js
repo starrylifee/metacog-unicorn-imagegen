@@ -30,7 +30,7 @@ export default async function handler(req, res) {
   });
 
   // 딜레이 없이 모델 폴백만 (Vercel 10초 타임아웃 준수)
-  const models = ['gemini-2.5-flash', 'gemini-1.5-flash'];
+  const models = ['gemini-2.5-flash', 'gemini-2.0-flash'];
   let lastStatus = 500, lastMsg = 'Unknown error';
 
   for (const model of models) {
