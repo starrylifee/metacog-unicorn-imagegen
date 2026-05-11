@@ -116,6 +116,12 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.92);backdrop-
 .lightbox.on{opacity:1;pointer-events:auto}
 .lightbox img{max-width:92vw;max-height:92vh;border-radius:10px}
 
+/* GALLERY CODE MODAL */
+.gal-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.gal-row:last-child{border-bottom:none}
+.gal-code-chip{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;letter-spacing:4px;background:var(--black);color:var(--lime);border-radius:8px;padding:4px 12px;display:inline-block}
+.gal-url{font-size:11px;color:#aaa;font-family:'JetBrains Mono',monospace;word-break:break-all;margin-top:3px}
+
 @media(max-width:700px){nav{padding:0 16px}.hero,.boards{padding-left:16px;padding-right:16px}.wall,.skeleton-wall{columns:2 140px}.modal-body{flex-direction:column}.modal-img-wrap{width:100%;max-width:100%;height:220px}.modal-img-wrap img{height:220px;width:auto;margin:auto}}
 @media(max-width:400px){.wall,.skeleton-wall{columns:1}}
 </style>
@@ -152,6 +158,7 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.92);backdrop-
       <button class="chip" id="real-toggle" onclick="toggleReal()">실명 보기</button>
       <button class="chip on" id="sort-date" onclick="setSort('date')">최신순</button>
       <button class="chip" id="sort-score" onclick="setSort('score')">점수순</button>
+      <button class="chip" id="gal-btn" onclick="openGalModal()">🖼 갤러리 코드</button>
     </div>
   </div>
 
@@ -213,6 +220,21 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.92);backdrop-
   <img id="lb-img">
 </div>
 <div class="toast" id="toast"></div>
+
+<!-- GALLERY CODE MODAL -->
+<div class="modal-bg" id="gal-bg" onclick="if(event.target===this)this.classList.remove('on')">
+  <div class="modal-box" style="max-width:500px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span style="font-size:15px;font-weight:600">🖼 갤러리 코드</span>
+      <span style="font-size:12px;color:#888;margin-left:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="gal-board-name"></span>
+      <button class="modal-close" onclick="document.getElementById('gal-bg').classList.remove('on')">✕</button>
+    </div>
+    <div style="padding:10px 20px 10px;border-bottom:1px solid var(--line);font-size:12px;color:#888;line-height:1.6">
+      학생에게 코드 또는 링크를 공유하면 <strong>gallery.html</strong>에서 자신의 작품을 3D 갤러리로 감상할 수 있어요.
+    </div>
+    <div id="gal-body" style="overflow-y:auto;padding:4px 20px 12px;max-height:55vh"></div>
+  </div>
+</div>
 
 <script>
 firebase.initializeApp({
@@ -490,6 +512,120 @@ function toast(msg) {
   t.textContent = msg;
   t.classList.add('on');
   setTimeout(() => t.classList.remove('on'), 2800);
+}
+
+/* ── Gallery code management ── */
+let galStudentList = [];
+let galCsvTitle = '';
+
+async function openGalModal() {
+  if (!currentBoard || !sortedGroupsCache.length) { toast('먼저 보드를 불러주세요'); return; }
+  const activeGroup = sortedGroupsCache.find(([t]) => t === currentBoard);
+  if (!activeGroup) return;
+  const [title, items] = activeGroup;
+  galCsvTitle = title;
+
+  // Group by label (pseudonym)
+  const map = {};
+  items.forEach(r => {
+    const key = r.label || r.studentNum || '?';
+    if (!map[key]) map[key] = { label: r.label || key, studentNum: r.studentNum || '', paintings: [] };
+    map[key].paintings.push(r);
+  });
+  galStudentList = Object.values(map);
+
+  document.getElementById('gal-board-name').textContent = title;
+  document.getElementById('gal-body').innerHTML = '<div style="color:#888;font-size:13px;text-align:center;padding:20px">불러오는 중...</div>';
+  document.getElementById('gal-bg').classList.add('on');
+
+  let existingCodes = {};
+  try {
+    const snap = await db.collection('users').doc(currentUser.uid).collection('roomCodes')
+      .where('csvTitle', '==', title).get();
+    snap.docs.forEach(d => { existingCodes[d.data().label] = d.id; });
+  } catch(e) {}
+
+  renderGalBody(existingCodes);
+}
+
+function renderGalBody(existingCodes) {
+  const body = document.getElementById('gal-body');
+  if (!galStudentList.length) {
+    body.innerHTML = '<div style="color:#888;font-size:13px;text-align:center;padding:20px">학생 없음</div>';
+    return;
+  }
+  body.innerHTML = galStudentList.map((s, i) => {
+    const code = existingCodes[s.label];
+    if (code) s._code = code; else delete s._code;
+    const galUrl = code ? `${location.origin}/gallery.html?code=${code}` : '';
+    return `<div class="gal-row">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:14px">${escHtml(s.label)} 학생 · ${s.paintings.length}개 작품</div>
+        ${code
+          ? `<div style="margin-top:5px"><span class="gal-code-chip">${escHtml(code)}</span></div>
+             <div class="gal-url">${escHtml(galUrl)}</div>`
+          : ''}
+      </div>
+      ${code
+        ? `<button class="btn btn-out btn-sm" onclick="copyGalLink(${i},this)">복사</button>`
+        : `<button class="btn btn-dark btn-sm" onclick="genGalCode(${i},this)">코드 생성</button>`}
+    </div>`;
+  }).join('');
+}
+
+async function genGalCode(idx, btn) {
+  const s = galStudentList[idx];
+  if (!s) return;
+  btn.disabled = true; btn.textContent = '생성 중...';
+  const code = generateCode();
+  try {
+    await db.collection('rooms').doc(code).set({
+      studentNum: s.studentNum || s.label,
+      studentName: s.label,
+      csvTitle: galCsvTitle,
+      paintings: s.paintings.map(r => ({
+        label: r.label || '',
+        studentNum: r.studentNum || '',
+        score: r.score || 0,
+        imageUrl: r.imageUrl || '',
+        promptKo: r.promptKo || '',
+        promptEn: r.promptEn || '',
+        csvTitle: r.csvTitle || '',
+      })),
+      teacherUid: currentUser.uid,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await db.collection('users').doc(currentUser.uid).collection('roomCodes').doc(code).set({
+      label: s.label,
+      studentNum: s.studentNum || '',
+      csvTitle: galCsvTitle,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    toast(`✓ 코드 생성: ${code}`);
+    await openGalModal();
+  } catch(e) {
+    toast('오류: ' + e.message);
+    btn.disabled = false; btn.textContent = '코드 생성';
+  }
+}
+
+async function copyGalLink(idx, btn) {
+  const s = galStudentList[idx];
+  if (!s || !s._code) return;
+  const url = `${location.origin}/gallery.html?code=${s._code}`;
+  try {
+    await navigator.clipboard.writeText(url);
+    const orig = btn.textContent;
+    btn.textContent = '✓ 복사됨';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  } catch(e) {
+    toast('복사 실패 — 수동으로 복사하세요');
+  }
+}
+
+function generateCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({length:6}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
 }
 </script>
 </body>

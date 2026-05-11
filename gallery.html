@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>나의 감상 갤러리 🖼</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖼️</text></svg>">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',system-ui,sans-serif;background:#0a0a0f;color:#fff;overflow:hidden;height:100dvh;width:100vw;-webkit-font-smoothing:antialiased}
+
+/* ── ENTRY ── */
+#entry{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 60%,#1a1030 0%,#060608 100%);z-index:100;gap:20px;padding:24px}
+.e-icon{font-size:52px;line-height:1}
+.e-title{font-size:26px;font-weight:700;letter-spacing:-.5px}
+.e-sub{font-size:14px;color:#666;text-align:center;max-width:260px;line-height:1.6}
+.code-row{display:flex;gap:8px;width:100%;max-width:300px}
+#code-inp{flex:1;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px 16px;font-size:22px;font-weight:700;letter-spacing:5px;text-transform:uppercase;color:#fff;text-align:center;font-family:'JetBrains Mono',monospace;transition:border-color .2s}
+#code-inp:focus{outline:none;border-color:#C8FA4C}
+#code-inp::placeholder{opacity:.2;letter-spacing:2px}
+.go-btn{background:#C8FA4C;color:#0a0a0a;border:none;border-radius:12px;padding:14px 18px;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .15s;white-space:nowrap}
+.go-btn:hover{opacity:.85}
+.go-btn:disabled{opacity:.4;cursor:default}
+#entry-err{font-size:13px;color:#ff6b6b;min-height:16px;text-align:center}
+
+/* ── LOADING ── */
+#loading{position:fixed;inset:0;background:#060608;z-index:90;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+.ld-icon{font-size:40px}
+.ld-txt{font-size:16px;font-weight:500}
+.prog-outer{width:240px;height:3px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden}
+.prog-inner{height:100%;background:#C8FA4C;border-radius:3px;transition:width .25s;width:0}
+.ld-sub{font-size:12px;color:#555}
+
+/* ── CANVAS ── */
+#wrap{position:fixed;inset:0;display:none}
+#c{display:block;width:100%!important;height:100%!important}
+
+/* ── CLICK TO START ── */
+#hint{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;z-index:50;cursor:pointer;text-align:center;padding:16px}
+#hint h2{font-size:20px;font-weight:600}
+#hint p{font-size:13px;color:#aaa;line-height:1.7}
+.key-row{display:flex;gap:6px;align-items:center;justify-content:center;margin-top:6px;font-size:12px;color:#888}
+kbd{background:rgba(255,255,255,.12);border-radius:5px;padding:3px 8px;font-size:11px;font-family:monospace;color:#ccc}
+
+/* ── CROSSHAIR ── */
+#xhair{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:30;display:none;width:16px;height:16px}
+#xhair::before,#xhair::after{content:'';position:absolute;background:rgba(255,255,255,.75);border-radius:1px}
+#xhair::before{width:2px;height:14px;left:7px;top:1px}
+#xhair::after{width:14px;height:2px;left:1px;top:7px}
+
+/* ── INTERACT HINT ── */
+#ihint{position:fixed;bottom:72px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.75);border:1px solid rgba(255,255,255,.12);border-radius:50px;padding:7px 18px;font-size:12px;display:none;z-index:30;pointer-events:none;white-space:nowrap;color:#ccc}
+
+/* ── INFO PANEL ── */
+#panel{position:fixed;top:50%;right:20px;transform:translateY(-50%);width:280px;background:rgba(8,8,12,.93);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,.09);border-radius:18px;overflow:hidden;z-index:60;display:none}
+#panel-img{width:100%;aspect-ratio:1;object-fit:cover;display:block}
+.pb{padding:14px}
+.p-badge{display:inline-block;border-radius:50px;padding:2px 9px;font-size:11px;font-weight:600;margin-bottom:6px}
+.p0{background:#333;color:#888}.p1,.p2{background:#444;color:#aaa}.p3,.p4{background:#555;color:#ccc}.p5,.p6{background:#777;color:#fff}.p7,.p8{background:#aaa;color:#111}.p9,.p10{background:#C8FA4C;color:#0a0a0a}
+.p-name{font-size:16px;font-weight:700;margin-bottom:1px}
+.p-session{font-size:11px;color:#555;margin-bottom:8px;font-family:'JetBrains Mono',monospace}
+.p-prompt{font-size:12px;line-height:1.7;color:#aaa;font-style:italic;max-height:110px;overflow-y:auto;margin-bottom:12px}
+.p-prompt::-webkit-scrollbar{width:3px}.p-prompt::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:3px}
+.p-close{width:100%;background:rgba(255,255,255,.06);border:none;border-radius:50px;padding:8px;font-size:12px;color:#888;cursor:pointer}
+.p-close:hover{background:rgba(255,255,255,.12);color:#ccc}
+
+/* ── ROOM LABEL (bottom) ── */
+#rlabel{position:fixed;bottom:16px;left:20px;font-size:12px;color:rgba(255,255,255,.3);display:none;pointer-events:none;z-index:30}
+
+/* ── PAUSE btn ── */
+#pbtn{position:fixed;top:14px;right:14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-radius:50px;padding:7px 14px;font-size:12px;color:#888;cursor:pointer;display:none;z-index:30}
+#pbtn:hover{background:rgba(255,255,255,.15);color:#ccc}
+</style>
+</head>
+<body>
+
+<div id="entry">
+  <div class="e-icon">🖼️</div>
+  <div class="e-title">나의 갤러리</div>
+  <div class="e-sub">선생님께 받은 입장 코드를 입력하세요</div>
+  <div class="code-row">
+    <input id="code-inp" placeholder="ABC123" maxlength="6" autocomplete="off" spellcheck="false">
+    <button class="go-btn" onclick="enter()">입장</button>
+  </div>
+  <div id="entry-err"></div>
+</div>
+
+<div id="loading">
+  <div class="ld-icon">🎨</div>
+  <div class="ld-txt">갤러리를 준비 중이에요...</div>
+  <div class="prog-outer"><div class="prog-inner" id="prog"></div></div>
+  <div class="ld-sub" id="ld-sub">작품 불러오는 중...</div>
+</div>
+
+<div id="wrap"><canvas id="c"></canvas></div>
+
+<div id="hint" onclick="lock()">
+  <h2>클릭하여 갤러리 입장</h2>
+  <p>마우스로 시점을 바꾸고<br>키보드로 이동하세요</p>
+  <div class="key-row">
+    <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>&nbsp;이동
+    &nbsp;·&nbsp; <kbd>E</kbd>&nbsp;작품 감상
+    &nbsp;·&nbsp; <kbd>ESC</kbd>&nbsp;정지
+  </div>
+</div>
+
+<div id="xhair"></div>
+<div id="ihint">👁 <kbd style="background:rgba(255,255,255,.15);border-radius:4px;padding:1px 6px;font-family:monospace;font-size:11px">E</kbd> 작품 감상</div>
+
+<div id="panel">
+  <img id="panel-img" src="" alt="">
+  <div class="pb">
+    <span class="p-badge" id="p-badge"></span>
+    <div class="p-name" id="p-name"></div>
+    <div class="p-session" id="p-session"></div>
+    <div class="p-prompt" id="p-prompt"></div>
+    <button class="p-close" onclick="closePanel()">닫기 (ESC)</button>
+  </div>
+</div>
+
+<div id="rlabel"></div>
+<button id="pbtn" onclick="togglePause()">⏸ 일시정지</button>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey:"AIzaSyBGQDVVPuW4-eTUuazuiBpHCW7cZSKy6Pc",
+  authDomain:"metacog-unicorn-imagegen.firebaseapp.com",
+  projectId:"metacog-unicorn-imagegen",
+  storageBucket:"metacog-unicorn-imagegen.firebasestorage.app",
+  messagingSenderId:"911788920186",
+  appId:"1:911788920186:web:d1acd902d81a9a8d199ac3"
+});
+const db = firebase.firestore();
+// 익명 로그인으로 Firestore 읽기 권한 확보
+firebase.auth().signInAnonymously().catch(()=>{});
+</script>
+
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+/* ── constants ── */
+const W=18, H=4.2, D=18;
+const PW=1.5, PH=1.5, PY=2.0;
+const GAP=0.015;
+const SPEED=5;
+const scoreLabel={0:'⏸️',1:'😴',2:'🤔',3:'😊',4:'🌟',5:'🏆',6:'💎',7:'🔥',8:'✨',9:'🌈',10:'👑'};
+const scoreText={0:'미완료',1:'아쉬웠어요',2:'조금 더!',3:'잘했어요!',4:'멋져요!',5:'훌륭해요!',6:'대단해요!',7:'놀라워요!',8:'최고예요!',9:'완벽해요!',10:'전설이에요!'};
+
+/* ── state ── */
+let scene, camera, renderer, controls, raycaster;
+let paintMeshes=[], hoveredMesh=null, panelOpen=false;
+const keys={};
+
+/* ── URL auto-fill ── */
+const urlCode = new URLSearchParams(location.search).get('code');
+if(urlCode) document.getElementById('code-inp').value=urlCode.toUpperCase();
+document.getElementById('code-inp').addEventListener('keydown',e=>{if(e.key==='Enter')enter();});
+
+/* ── entry ── */
+window.enter = async function(){
+  const code = document.getElementById('code-inp').value.trim().toUpperCase();
+  const errEl = document.getElementById('entry-err');
+  if(code.length<4){errEl.textContent='코드를 입력해주세요';return;}
+  errEl.textContent='';
+  document.querySelector('.go-btn').disabled=true;
+
+  // Firebase 인증 대기
+  await new Promise(res=>{
+    const u=firebase.auth().currentUser;
+    if(u){res();return;}
+    const off=firebase.auth().onAuthStateChanged(u2=>{if(u2){off();res();}});
+    setTimeout(res, 3000); // 타임아웃 폴백
+  });
+
+  document.getElementById('entry').style.display='none';
+  document.getElementById('loading').style.display='flex';
+
+  try{
+    const snap=await db.collection('rooms').doc(code).get();
+    if(!snap.exists) throw new Error('코드를 찾을 수 없어요. 다시 확인해주세요 🔍');
+    const room=snap.data();
+    const paintings=room.paintings||[];
+    if(!paintings.length) throw new Error('이 갤러리에 아직 작품이 없어요 🎨');
+    document.getElementById('rlabel').textContent=`🖼 ${room.studentName||room.studentNum||'나의'} 의 갤러리  ·  ${paintings.length}개 작품`;
+    await initScene(paintings, room.studentName||room.studentNum||'갤러리');
+  }catch(e){
+    document.getElementById('loading').style.display='none';
+    document.getElementById('entry').style.display='flex';
+    document.getElementById('entry-err').textContent=e.message;
+    document.querySelector('.go-btn').disabled=false;
+  }
+};
+
+/* ── 3D init ── */
+async function initScene(paintings, studentName){
+  scene=new THREE.Scene();
+  scene.background=new THREE.Color(0x06060a);
+  scene.fog=new THREE.FogExp2(0x06060a, 0.028);
+
+  camera=new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 60);
+  camera.position.set(0,1.7,6);
+
+  renderer=new THREE.WebGLRenderer({canvas:document.getElementById('c'), antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.shadowMap.enabled=true;
+  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.toneMapping=THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure=1.1;
+
+  controls=new PointerLockControls(camera, document.body);
+  raycaster=new THREE.Raycaster();
+  raycaster.far=3.5;
+
+  buildRoom(studentName);
+  await loadPaintings(paintings);
+
+  document.getElementById('loading').style.display='none';
+  document.getElementById('wrap').style.display='block';
+  document.getElementById('hint').style.display='flex';
+  document.getElementById('rlabel').style.display='block';
+  document.getElementById('pbtn').style.display='block';
+
+  window.addEventListener('resize',()=>{
+    camera.aspect=innerWidth/innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth,innerHeight);
+  });
+
+  document.addEventListener('keydown',e=>{
+    keys[e.code]=true;
+    if(e.code==='KeyE'&&hoveredMesh&&controls.isLocked) openPanel(hoveredMesh);
+    if(e.code==='Escape'&&panelOpen) closePanel();
+  });
+  document.addEventListener('keyup',e=>delete keys[e.code]);
+
+  controls.addEventListener('lock',()=>{
+    document.getElementById('hint').style.display='none';
+    document.getElementById('xhair').style.display='block';
+  });
+  controls.addEventListener('unlock',()=>{
+    document.getElementById('xhair').style.display='none';
+    if(!panelOpen) document.getElementById('hint').style.display='flex';
+    document.getElementById('ihint').style.display='none';
+  });
+
+  animate();
+}
+
+/* ── room geometry ── */
+function buildRoom(label){
+  const wallMat=new THREE.MeshStandardMaterial({color:0xf2ede6,roughness:0.95,metalness:0});
+  const floorMat=new THREE.MeshStandardMaterial({color:0x2a1e14,roughness:0.85,metalness:0});
+  const ceilMat=new THREE.MeshStandardMaterial({color:0xffffff,roughness:1,metalness:0});
+  const skirtMat=new THREE.MeshStandardMaterial({color:0x7a5c3a,roughness:0.6,metalness:0.1});
+
+  // Floor
+  const floor=new THREE.Mesh(new THREE.PlaneGeometry(W,D),floorMat);
+  floor.rotation.x=-Math.PI/2; floor.receiveShadow=true; scene.add(floor);
+
+  // Ceiling
+  const ceil=new THREE.Mesh(new THREE.PlaneGeometry(W,D),ceilMat);
+  ceil.rotation.x=Math.PI/2; ceil.position.y=H; scene.add(ceil);
+
+  // 4 walls
+  const addWall=(gw,gh,x,y,z,ry)=>{
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(gw,gh),wallMat.clone());
+    m.position.set(x,y,z); m.rotation.y=ry; m.receiveShadow=true; scene.add(m);
+  };
+  const hy=H/2;
+  addWall(W,H, 0,hy,-D/2, 0);           // North  (faces +z)
+  addWall(W,H, 0,hy, D/2, Math.PI);     // South
+  addWall(D,H,  W/2,hy,0, -Math.PI/2);  // East
+  addWall(D,H, -W/2,hy,0,  Math.PI/2);  // West
+
+  // Skirting
+  [[1,0,0],[-1,0,0],[0,0,1],[0,0,-1]].forEach(([dx,,dz])=>{
+    const isX=dx!==0;
+    const len=isX?W:D;
+    const s=new THREE.Mesh(new THREE.BoxGeometry(isX?len:0.06,0.18,isX?0.06:len),skirtMat);
+    s.position.set(dx*(W/2-0.03),0.09,dz*(D/2-0.03));
+    scene.add(s);
+  });
+
+  // Name plate on north wall
+  const nameTex=makeTextTexture(label+'의 갤러리', 600, 80, 32, '#C8FA4C');
+  const namePlate=new THREE.Mesh(
+    new THREE.PlaneGeometry(3,0.4),
+    new THREE.MeshBasicMaterial({map:nameTex,transparent:true})
+  );
+  namePlate.position.set(0,H-0.4,-D/2+0.02);
+  scene.add(namePlate);
+
+  // Ambient
+  scene.add(new THREE.AmbientLight(0xfff0d0,0.45));
+
+  // Ceiling spotlights (3×3 grid)
+  for(let xi=-1;xi<=1;xi++) for(let zi=-1;zi<=1;zi++){
+    const sl=new THREE.SpotLight(0xffe8c0, 1.8, 14, Math.PI/5, 0.6, 1);
+    sl.position.set(xi*(W/3), H-0.05, zi*(D/3));
+    sl.target.position.set(xi*(W/3),0,zi*(D/3));
+    sl.castShadow=true;
+    sl.shadow.mapSize.width=512; sl.shadow.mapSize.height=512;
+    scene.add(sl); scene.add(sl.target);
+  }
+}
+
+/* ── painting slots ── */
+function getSlots(n){
+  // 4 walls: north, east, south, west
+  const walls=[
+    {p:(o)=>new THREE.Vector3(o, PY,-D/2+GAP),  ry:0,          labelOff:new THREE.Vector3(0,0,0.01)},
+    {p:(o)=>new THREE.Vector3(W/2-GAP, PY, o),  ry:-Math.PI/2, labelOff:new THREE.Vector3(0,0,0.01)},
+    {p:(o)=>new THREE.Vector3(o, PY, D/2-GAP),  ry:Math.PI,    labelOff:new THREE.Vector3(0,0,0.01)},
+    {p:(o)=>new THREE.Vector3(-W/2+GAP, PY, o), ry:Math.PI/2,  labelOff:new THREE.Vector3(0,0,0.01)},
+  ];
+  const slots=[];
+  const maxPerWall=Math.floor((D-2)/2.6);
+  const perWall=Math.ceil(n/4);
+  let assigned=0;
+  for(const wall of walls){
+    if(assigned>=n) break;
+    const cnt=Math.min(perWall,n-assigned,maxPerWall);
+    const sp=Math.min(2.6,(D-2)/Math.max(cnt,1));
+    const start=-(cnt-1)*sp/2;
+    for(let i=0;i<cnt;i++){slots.push({wall,offset:start+i*sp});assigned++;}
+  }
+  return slots;
+}
+
+/* ── load paintings ── */
+async function loadPaintings(paintings){
+  const loader=new THREE.TextureLoader();
+  loader.crossOrigin='anonymous';
+  const slots=getSlots(paintings.length);
+
+  await Promise.all(paintings.map((p,i)=>{
+    const slot=slots[i]; if(!slot) return Promise.resolve();
+    return new Promise(res=>{
+      const place=(tex)=>{
+        if(tex) tex.colorSpace=THREE.SRGBColorSpace;
+        placePainting(p, tex||makePlaceholderTex(), slot);
+        const done=paintMeshes.length;
+        document.getElementById('prog').style.width=(done/paintings.length*100)+'%';
+        document.getElementById('ld-sub').textContent=`${done} / ${paintings.length} 작품 완료`;
+        res();
+      };
+      if(p.imageUrl) loader.load(p.imageUrl, place, undefined, ()=>place(null));
+      else place(null);
+    });
+  }));
+}
+
+function makePlaceholderTex(){
+  const cv=document.createElement('canvas'); cv.width=cv.height=256;
+  const c=cv.getContext('2d');
+  c.fillStyle='#1e1a2e'; c.fillRect(0,0,256,256);
+  c.font='80px serif'; c.textAlign='center'; c.fillText('🎨',128,150);
+  return new THREE.CanvasTexture(cv);
+}
+
+function placePainting(data, tex, slot){
+  const {wall,offset}=slot;
+  const pos=wall.p(offset);
+
+  // Frame (dark wood box)
+  const fp=0.1;
+  const frame=new THREE.Mesh(
+    new THREE.BoxGeometry(PW+fp,PH+fp,0.05),
+    new THREE.MeshStandardMaterial({color:0x130f08,roughness:0.45,metalness:0.25})
+  );
+  frame.position.copy(pos); frame.rotation.y=wall.ry; scene.add(frame);
+
+  // Inner mount (white matting)
+  const mp=0.06;
+  const mount=new THREE.Mesh(
+    new THREE.PlaneGeometry(PW+mp,PH+mp),
+    new THREE.MeshStandardMaterial({color:0xfff8f0,roughness:1})
+  );
+  mount.position.copy(pos); mount.rotation.y=wall.ry;
+  nudge(mount, wall.ry, 0.028); scene.add(mount);
+
+  // Painting
+  const paint=new THREE.Mesh(
+    new THREE.PlaneGeometry(PW,PH),
+    new THREE.MeshStandardMaterial({map:tex,roughness:0.85,metalness:0,emissive:new THREE.Color(0x000000),emissiveIntensity:0})
+  );
+  paint.position.copy(pos); paint.rotation.y=wall.ry;
+  nudge(paint, wall.ry, 0.032);
+  paint.userData={isPaint:true,data};
+  scene.add(paint); paintMeshes.push(paint);
+
+  // Label
+  const lTex=makeLabel(data);
+  const lMesh=new THREE.Mesh(
+    new THREE.PlaneGeometry(PW,0.24),
+    new THREE.MeshBasicMaterial({map:lTex,transparent:true})
+  );
+  lMesh.position.copy(pos); lMesh.rotation.y=wall.ry;
+  lMesh.position.y=pos.y-PH/2-0.2;
+  nudge(lMesh, wall.ry, 0.03); scene.add(lMesh);
+}
+
+function nudge(mesh,ry,amt){
+  // Push mesh forward (in facing direction) by amt
+  const dir=new THREE.Vector3(Math.sin(ry),0,Math.cos(ry));
+  mesh.position.addScaledVector(dir,amt);
+}
+
+function makeTextTexture(text,w,h,size,color='#ffffff'){
+  const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+  const c=cv.getContext('2d');
+  c.clearRect(0,0,w,h);
+  c.fillStyle=color; c.font=`600 ${size}px Inter, system-ui`;
+  c.textAlign='center'; c.textBaseline='middle';
+  c.fillText(text,w/2,h/2);
+  return new THREE.CanvasTexture(cv);
+}
+
+function makeLabel(data){
+  const cv=document.createElement('canvas'); cv.width=512; cv.height=72;
+  const c=cv.getContext('2d'); c.clearRect(0,0,512,72);
+  const sc=Math.min(data.score||0,10);
+  const emoji=scoreLabel[sc]||'⭐';
+  const word=scoreText[sc]||`${data.score}점`;
+  c.fillStyle='rgba(255,255,255,0.9)'; c.font='bold 26px Inter, system-ui';
+  c.textAlign='center'; c.fillText(data.csvTitle||'감상', 256, 28);
+  c.fillStyle='#C8FA4C'; c.font='22px Inter, system-ui';
+  c.fillText(`${emoji} ${word}`, 256, 58);
+  return new THREE.CanvasTexture(cv);
+}
+
+function safePrompt(t){
+  if(!t) return '';
+  const s=t.trim();
+  if(s.startsWith('{')||s.startsWith('```')){
+    try{const c=s.replace(/^```(?:json)?\s*/i,'').replace(/\s*```\s*$/,'').trim();const p=JSON.parse(c);return p.ko||p.en||t;}catch{return t;}
+  }
+  return t;
+}
+
+/* ── panel ── */
+window.openPanel=function(mesh){
+  const d=mesh.userData.data;
+  panelOpen=true;
+  controls.unlock();
+  document.getElementById('hint').style.display='none';
+  document.getElementById('ihint').style.display='none';
+  const sc=Math.min(d.score||0,10);
+  document.getElementById('panel-img').src=d.imageUrl||'';
+  document.getElementById('p-badge').className=`p-badge p${sc}`;
+  document.getElementById('p-badge').textContent=`${scoreLabel[sc]} ${scoreText[sc]||d.score+'점'}`;
+  document.getElementById('p-name').textContent=`${d.label||''} 학생`;
+  document.getElementById('p-session').textContent=d.csvTitle||'';
+  document.getElementById('p-prompt').textContent=safePrompt(d.promptKo||d.promptEn||'');
+  document.getElementById('panel').style.display='block';
+};
+
+window.closePanel=function(){
+  panelOpen=false;
+  document.getElementById('panel').style.display='none';
+  document.getElementById('hint').style.display='flex';
+};
+
+window.lock=function(){if(!panelOpen) controls.lock();};
+window.togglePause=function(){
+  if(controls.isLocked) controls.unlock();
+  else if(!panelOpen) controls.lock();
+};
+
+/* ── animation loop ── */
+let prev=performance.now();
+function animate(){
+  requestAnimationFrame(animate);
+  const now=performance.now();
+  const dt=Math.min((now-prev)/1000,0.05);
+  prev=now;
+
+  if(controls.isLocked){
+    const v=SPEED*dt;
+    if(keys['KeyW']||keys['ArrowUp'])   controls.moveForward(v);
+    if(keys['KeyS']||keys['ArrowDown']) controls.moveForward(-v);
+    if(keys['KeyA']||keys['ArrowLeft']) controls.moveRight(-v);
+    if(keys['KeyD']||keys['ArrowRight'])controls.moveRight(v);
+
+    // Boundary clamp
+    const bx=W/2-0.8, bz=D/2-0.8;
+    camera.position.x=Math.max(-bx,Math.min(bx,camera.position.x));
+    camera.position.z=Math.max(-bz,Math.min(bz,camera.position.z));
+    camera.position.y=1.7;
+
+    // Raycast for hover
+    raycaster.setFromCamera(new THREE.Vector2(0,0),camera);
+    const hits=raycaster.intersectObjects(paintMeshes);
+    const hit=hits.length?hits[0].object:null;
+    if(hit!==hoveredMesh){
+      if(hoveredMesh) hoveredMesh.material.emissiveIntensity=0;
+      hoveredMesh=hit;
+      if(hit){hit.material.emissiveIntensity=0.18;hit.material.emissive.set(0x443300);}
+    }
+    document.getElementById('ihint').style.display=hoveredMesh?'block':'none';
+  }
+
+  renderer.render(scene,camera);
+}
+</script>
+</body>
+</html>
