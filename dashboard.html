@@ -45,6 +45,8 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.92);backdrop-
 .chip{background:var(--white);border:1.5px solid var(--line);border-radius:50px;padding:7px 14px;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap}
 .chip.on{background:var(--black);color:var(--white);border-color:var(--black)}
 .chip:hover:not(.on){background:var(--soft)}
+.board-select{background:var(--white);border:1.5px solid var(--line);border-radius:50px;padding:7px 36px 7px 16px;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23999' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;max-width:280px;overflow:hidden;text-overflow:ellipsis;transition:border-color .15s}
+.board-select:focus{outline:none;border-color:var(--black)}
 
 /* BOARDS */
 .boards{max-width:1400px;margin:0 auto;padding:0 var(--r32) 80px;display:flex;flex-direction:column;gap:40px}
@@ -146,6 +148,7 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.92);backdrop-
       <p class="hero-sub" id="hero-sub">불러오는 중...</p>
     </div>
     <div class="toolbar">
+      <select class="board-select" id="board-select" onchange="selectBoard(this.value)"></select>
       <button class="chip" id="real-toggle" onclick="toggleReal()">실명 보기</button>
       <button class="chip on" id="sort-date" onclick="setSort('date')">최신순</button>
       <button class="chip" id="sort-score" onclick="setSort('score')">점수순</button>
@@ -229,6 +232,8 @@ let allResults = [];
 let currentSort = 'date';
 let showReal = false;
 let currentDocId = null;
+let currentBoard = null;
+let sortedGroupsCache = [];
 
 const scoreLabel = {
   0:'⏸️ 미완료', 1:'😴 아쉬웠어요', 2:'🤔 조금 더!', 3:'😊 잘했어요!',
@@ -294,6 +299,11 @@ function setSort(type) {
   renderBoards();
 }
 
+function selectBoard(title) {
+  currentBoard = title;
+  renderBoards();
+}
+
 function toggleReal() {
   showReal = !showReal;
   const btn = document.getElementById('real-toggle');
@@ -320,35 +330,41 @@ function renderBoards() {
     groups[key].push(r);
   });
 
-  const sortedGroups = Object.entries(groups).sort((a, b) => {
+  sortedGroupsCache = Object.entries(groups).sort((a, b) => {
     const la = Math.max(...a[1].map(r => r.createdAt?.seconds || 0));
     const lb = Math.max(...b[1].map(r => r.createdAt?.seconds || 0));
     return lb - la;
   });
 
-  const total = allResults.length;
-  document.getElementById('hero-sub').textContent = `${sortedGroups.length}개 수업 · 총 ${total}개 이미지`;
-
-  container.innerHTML = sortedGroups.map(([title, items]) => {
-    const sorted = [...items].sort((a, b) => {
-      if (currentSort === 'score') return b.score - a.score;
-      return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
+  // 드롭다운 옵션 갱신 (처음 로드 시만)
+  const sel = document.getElementById('board-select');
+  if (sel.options.length === 0) {
+    sortedGroupsCache.forEach(([title, items]) => {
+      const opt = document.createElement('option');
+      opt.value = title;
+      opt.textContent = `📄 ${title} (${items.length}개)`;
+      sel.appendChild(opt);
     });
-    const latestTs = Math.max(...items.map(r => r.createdAt?.seconds || 0));
-    const latestDate = latestTs ? new Date(latestTs * 1000).toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric'}) : '';
-    return `
-    <div class="board">
-      <div class="board-header">
-        <span class="board-icon">📄</span>
-        <span class="board-title">${escHtml(title)}</span>
-        <span class="board-count">${items.length}개</span>
-        <span class="board-date">${latestDate}</span>
-      </div>
-      <div class="wall">
-        ${sorted.map(r => renderCard(r)).join('')}
-      </div>
-    </div>`;
-  }).join('');
+    // 최초 로드: 가장 최근 보드 선택
+    if (!currentBoard) currentBoard = sortedGroupsCache[0][0];
+    sel.value = currentBoard;
+  }
+
+  // 선택된 보드만 표시
+  const activeGroup = sortedGroupsCache.find(([t]) => t === currentBoard);
+  if (!activeGroup) return;
+  const [title, items] = activeGroup;
+
+  const sorted = [...items].sort((a, b) => {
+    if (currentSort === 'score') return b.score - a.score;
+    return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
+  });
+  const latestTs = Math.max(...items.map(r => r.createdAt?.seconds || 0));
+  const latestDate = latestTs ? new Date(latestTs * 1000).toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric'}) : '';
+
+  document.getElementById('hero-sub').textContent = `${items.length}개 이미지 · ${latestDate}`;
+
+  container.innerHTML = `<div class="board"><div class="wall">${sorted.map(r => renderCard(r)).join('')}</div></div>`;
 }
 
 function renderCard(r) {
@@ -443,6 +459,9 @@ async function deleteResult(docId, imagePath) {
     if (imagePath) await storage.ref(imagePath).delete().catch(() => {});
     allResults = allResults.filter(r => r.id !== docId);
     document.getElementById('modal-bg').classList.remove('on');
+    // 드롭다운 재구성을 위해 옵션 초기화
+    const sel = document.getElementById('board-select');
+    while (sel.options.length) sel.remove(0);
     renderBoards();
     toast('삭제 완료');
   } catch(e) {
