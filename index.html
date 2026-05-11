@@ -535,7 +535,7 @@ function downloadImage(){
   const s=students[selIdx];
   const a=document.createElement('a');
   a.href=img.src;
-  a.download=`student_${s.label}_score${s.score}.png`;
+  a.download=`student_${s.num}_score${s.score}.png`;
   a.click();
 }
 
@@ -592,7 +592,7 @@ async function downloadAllImages() {
   students.forEach(s => {
     if(s._img) {
       const ext = s._img.mime.includes('png') ? 'png' : 'jpg';
-      zip.file(`${s.label}_score${s.score}.${ext}`, s._img.data, {base64:true});
+      zip.file(`${s.num}_score${s.score}.${ext}`, s._img.data, {base64:true});
       count++;
     }
   });
