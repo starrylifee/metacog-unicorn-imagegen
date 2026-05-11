@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>대시보드 — 감상 이미지</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -14,66 +15,99 @@
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
   --black:#0D0D0D;--white:#fff;
-  --lime:#C8FA4C;--lilac:#E4DEFF;--soft:#F4F4F2;--line:#E4E4E2;--coral:#FF8B70;
+  --lime:#C8FA4C;--lilac:#E4DEFF;--soft:#F4F4F2;--line:#E4E4E2;--coral:#FF8B70;--navy:#16165A;
   --r32:32px;--r16:16px;--r8:8px;
 }
-body{font-family:'Inter',system-ui,sans-serif;background:var(--white);color:var(--black);font-size:16px;font-weight:350;line-height:1.5;-webkit-font-smoothing:antialiased}
-nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.9);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);height:58px;display:flex;align-items:center;padding:0 var(--r32);justify-content:space-between}
+body{font-family:'Inter',system-ui,sans-serif;background:#F7F7F5;color:var(--black);font-size:16px;font-weight:350;line-height:1.5;-webkit-font-smoothing:antialiased}
+
+/* NAV */
+nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);height:58px;display:flex;align-items:center;padding:0 var(--r32);justify-content:space-between}
 .logo{font-size:17px;font-weight:600;letter-spacing:-.4px;display:flex;align-items:center;gap:6px}
 .logo-dot{width:8px;height:8px;background:var(--lime);border-radius:50%;border:2px solid var(--black)}
-.btn{border:none;border-radius:50px;padding:9px 20px;font-family:'Inter',sans-serif;font-size:15px;font-weight:500;cursor:pointer;transition:all .15s;text-decoration:none;display:inline-flex;align-items:center}
+.btn{border:none;border-radius:50px;padding:9px 20px;font-family:'Inter',sans-serif;font-size:15px;font-weight:500;cursor:pointer;transition:all .15s;text-decoration:none;display:inline-flex;align-items:center;gap:5px}
 .btn-dark{background:var(--black);color:var(--white)}.btn-dark:hover{opacity:.82}
-.btn-out{background:transparent;color:var(--black);border:1.5px solid var(--black)}.btn-out:hover{background:var(--soft)}
-.btn-red{background:transparent;color:#c33;border:1.5px solid #c33;font-size:13px;padding:6px 14px}.btn-red:hover{background:#fff0f0}
+.btn-out{background:transparent;color:var(--black);border:1.5px solid rgba(0,0,0,.2)}.btn-out:hover{background:var(--soft)}
 
-.hero{padding:56px var(--r32) 32px;max-width:1200px;margin:0 auto}
-.hero h1{font-size:clamp(32px,4vw,56px);font-weight:380;letter-spacing:-1.5px;margin-bottom:8px}
-.hero-sub{font-size:16px;color:#666;margin-bottom:24px}
-
-.toolbar{max-width:1200px;margin:0 auto;padding:0 var(--r32) 24px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-.sort-btn{background:var(--soft);border:none;border-radius:50px;padding:7px 16px;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s}
-.sort-btn.on{background:var(--black);color:var(--white)}
-.count-label{font-size:13px;color:#888;margin-left:auto}
-
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;max-width:1200px;margin:0 auto;padding:0 var(--r32) 80px}
-
-.card{background:var(--white);border:1.5px solid var(--line);border-radius:20px;overflow:hidden;transition:box-shadow .2s}
-.card:hover{box-shadow:0 6px 24px rgba(0,0,0,.08)}
-.card-img{aspect-ratio:1;overflow:hidden;background:var(--soft);cursor:zoom-in;position:relative}
-.card-img img{width:100%;height:100%;object-fit:cover;transition:transform .3s}
-.card-img:hover img{transform:scale(1.04)}
-.card-img .no-img{display:flex;align-items:center;justify-content:center;height:100%;font-size:32px;color:#ccc}
-.card-body{padding:16px}
-.card-meta{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
-.s-badge{display:inline-block;border-radius:50px;padding:3px 11px;font-size:12px;font-weight:600}
-.s0{background:#f5f5f5;color:#aaa}.s1{background:#eee;color:#666}.s2{background:#ddd;color:#444}.s3{background:#ccc;color:#333}.s4{background:#bbb;color:#222}.s5{background:#999;color:#fff}.s6{background:#777;color:#fff}.s7{background:#555;color:#fff}.s8{background:#333;color:#fff}.s9{background:#111;color:var(--lime)}.s10{background:var(--black);color:var(--lime)}
-.card-label{font-size:14px;font-weight:600}
-.card-date{font-size:11px;color:#999;font-family:'JetBrains Mono',monospace;margin-left:auto}
-.card-prompt{font-size:13px;line-height:1.65;color:#444;font-style:italic;margin-bottom:12px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-.card-prompt.expanded{-webkit-line-clamp:unset}
-.expand-btn{font-size:12px;color:#888;background:none;border:none;cursor:pointer;padding:0;margin-bottom:10px}
-.memo-label{font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:#999;margin-bottom:6px}
-.memo{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-family:'Inter',sans-serif;font-size:13px;resize:vertical;min-height:64px;transition:border-color .15s;line-height:1.5}
-.memo:focus{outline:none;border-color:var(--black)}
-.card-actions{display:flex;gap:8px;margin-top:12px;align-items:center}
-.save-indicator{font-size:12px;color:#2a7;margin-left:auto;opacity:0;transition:opacity .3s}
-.save-indicator.on{opacity:1}
-
-.empty{text-align:center;padding:80px 32px;color:#999}
-.empty .ei{font-size:48px;margin-bottom:16px}
-
-.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:200;display:flex;align-items:center;justify-content:center;cursor:zoom-out;opacity:0;pointer-events:none;transition:opacity .25s}
-.lightbox.on{opacity:1;pointer-events:auto}
-.lightbox img{max-width:90vw;max-height:90vh;border-radius:12px}
-
-.login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:20px;text-align:center;padding:32px}
+/* LOGIN */
+.login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:70vh;gap:20px;text-align:center;padding:32px}
 .login-screen h2{font-size:28px;font-weight:380;letter-spacing:-.5px}
 .login-screen p{color:#666;font-size:16px}
 
+/* MAIN */
+#main-content{padding-bottom:80px}
+
+/* HERO */
+.hero{padding:48px var(--r32) 32px;max-width:1400px;margin:0 auto;display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.hero h1{font-size:clamp(28px,3.5vw,48px);font-weight:380;letter-spacing:-1px}
+.hero-sub{font-size:14px;color:#888;margin-top:4px}
+.toolbar{display:flex;gap:8px;align-items:center;flex-shrink:0}
+.sort-chip{background:var(--white);border:1.5px solid var(--line);border-radius:50px;padding:7px 16px;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s}
+.sort-chip.on{background:var(--black);color:var(--white);border-color:var(--black)}
+
+/* BOARD (CSV 세션) */
+.boards{max-width:1400px;margin:0 auto;padding:0 var(--r32);display:flex;flex-direction:column;gap:48px}
+
+.board{}
+.board-header{display:flex;align-items:center;gap:14px;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid var(--black)}
+.board-icon{font-size:22px}
+.board-title{font-size:20px;font-weight:600;letter-spacing:-.4px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.board-meta{font-size:13px;color:#888;font-family:'JetBrains Mono',monospace;white-space:nowrap}
+.board-count{background:var(--black);color:var(--white);border-radius:50px;padding:2px 10px;font-size:12px;font-weight:600;margin-left:8px}
+
+/* WALL (masonry) */
+.wall{columns:4 260px;column-gap:14px}
+
+/* WALL CARD */
+.wcard{break-inside:avoid;margin-bottom:14px;background:var(--white);border-radius:16px;overflow:hidden;border:1.5px solid var(--line);transition:box-shadow .2s,transform .2s}
+.wcard:hover{box-shadow:0 6px 24px rgba(0,0,0,.1);transform:translateY(-2px)}
+.wcard-img{overflow:hidden;background:var(--soft);cursor:zoom-in;position:relative}
+.wcard-img img{width:100%;display:block;transition:transform .35s}
+.wcard-img:hover img{transform:scale(1.04)}
+.wcard-img .no-img{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:36px;color:#ccc}
+.wcard-body{padding:14px}
+.wcard-top{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.s-badge{display:inline-block;border-radius:50px;padding:3px 10px;font-size:11px;font-weight:600}
+.s0{background:#f5f5f5;color:#aaa}.s1{background:#eee;color:#666}.s2{background:#ddd;color:#444}.s3{background:#ccc;color:#333}.s4{background:#bbb;color:#222}.s5{background:#999;color:#fff}.s6{background:#777;color:#fff}.s7{background:#555;color:#fff}.s8{background:#333;color:#fff}.s9{background:#111;color:var(--lime)}.s10{background:var(--black);color:var(--lime)}
+.wcard-label{font-size:13px;font-weight:600}
+.wcard-date{font-size:11px;color:#bbb;font-family:'JetBrains Mono',monospace;margin-left:auto}
+.wcard-prompt{font-size:12px;line-height:1.7;color:#555;font-style:italic;margin-bottom:10px;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.wcard-prompt.expanded{-webkit-line-clamp:unset}
+.expand-btn{font-size:11px;color:#aaa;background:none;border:none;cursor:pointer;padding:0;margin-bottom:8px;display:block}
+.expand-btn:hover{color:#555}
+.memo-area{width:100%;border:1.5px solid var(--line);border-radius:8px;padding:8px 10px;font-family:'Inter',sans-serif;font-size:12px;resize:none;min-height:52px;transition:border-color .15s;line-height:1.5;background:#fafafa}
+.memo-area:focus{outline:none;border-color:var(--black);background:var(--white)}
+.wcard-actions{display:flex;gap:8px;margin-top:8px;align-items:center}
+.del-btn{background:none;border:none;font-size:12px;color:#ccc;cursor:pointer;padding:4px 0;transition:color .15s}
+.del-btn:hover{color:#c33}
+.saved-dot{font-size:11px;color:#2a7;margin-left:auto;opacity:0;transition:opacity .3s}
+.saved-dot.on{opacity:1}
+
+/* EMPTY */
+.empty-board{text-align:center;padding:48px 24px;color:#bbb;background:var(--white);border-radius:16px;border:1.5px dashed var(--line)}
+.empty-board .ei{font-size:40px;margin-bottom:12px}
+
+/* LIGHTBOX */
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:200;display:flex;align-items:center;justify-content:center;cursor:zoom-out;opacity:0;pointer-events:none;transition:opacity .25s}
+.lightbox.on{opacity:1;pointer-events:auto}
+.lightbox-inner{position:relative;max-width:90vw;max-height:90vh}
+.lightbox-inner img{max-width:100%;max-height:90vh;border-radius:12px;display:block}
+.lightbox-caption{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.7));color:#fff;padding:20px 16px 14px;border-radius:0 0 12px 12px;font-size:13px;line-height:1.6;font-style:italic}
+
+/* TOAST */
 .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--black);color:var(--white);padding:10px 22px;border-radius:50px;font-size:14px;z-index:999;opacity:0;transition:all .25s;pointer-events:none}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 
-@media(max-width:600px){nav{padding:0 16px}.hero,.toolbar{padding-left:16px;padding-right:16px}.grid{padding:0 16px 60px;grid-template-columns:1fr}}
+/* LOADING SKELETON */
+.skeleton-board{max-width:1400px;margin:0 auto;padding:0 var(--r32)}
+.skeleton-header{height:40px;background:linear-gradient(90deg,#eee 25%,#f5f5f5 50%,#eee 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:8px;margin-bottom:20px;width:320px}
+.skeleton-wall{columns:4 260px;column-gap:14px}
+.skeleton-card{break-inside:avoid;margin-bottom:14px;border-radius:16px;overflow:hidden}
+.skeleton-img{aspect-ratio:1;background:linear-gradient(90deg,#eee 25%,#f5f5f5 50%,#eee 75%);background-size:200% 100%;animation:shimmer 1.4s infinite}
+.skeleton-text{height:14px;background:linear-gradient(90deg,#eee 25%,#f5f5f5 50%,#eee 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:4px;margin:14px 14px 10px}
+@keyframes shimmer{to{background-position:-200% 0}}
+
+@media(max-width:700px){nav{padding:0 16px}.hero,.boards{padding-left:16px;padding-right:16px}.wall{columns:2 140px}.toolbar{gap:6px}}
+@media(max-width:400px){.wall{columns:1}}
 </style>
 </head>
 <body>
@@ -81,7 +115,7 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.9);backdrop-f
 <nav>
   <div class="logo"><div class="logo-dot"></div>대시보드</div>
   <div style="display:flex;gap:8px;align-items:center">
-    <a class="btn btn-out" href="index.html" style="text-decoration:none">← 메인으로</a>
+    <a class="btn btn-out" href="index.html" style="text-decoration:none">← 메인</a>
     <div id="user-info" style="display:none;align-items:center;gap:8px">
       <img id="user-photo" style="width:28px;height:28px;border-radius:50%;object-fit:cover" src="" alt="">
       <span id="user-name" style="font-size:14px;font-weight:500"></span>
@@ -99,21 +133,38 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.9);backdrop-f
 
 <div id="main-content" style="display:none">
   <div class="hero">
-    <h1>저장된 이미지</h1>
-    <p class="hero-sub" id="hero-sub">불러오는 중...</p>
+    <div>
+      <h1>감상 담벼락</h1>
+      <p class="hero-sub" id="hero-sub">불러오는 중...</p>
+    </div>
+    <div class="toolbar">
+      <button class="sort-chip on" id="sort-date" onclick="setSort('date')">최신순</button>
+      <button class="sort-chip" id="sort-score" onclick="setSort('score')">점수순</button>
+    </div>
   </div>
 
-  <div class="toolbar">
-    <button class="sort-btn on" id="sort-date" onclick="setSort('date')">최신순</button>
-    <button class="sort-btn" id="sort-score" onclick="setSort('score')">점수순</button>
-    <span class="count-label" id="count-label"></span>
+  <div class="boards" id="boards-container">
+    <div class="skeleton-board" id="skeleton">
+      <div class="skeleton-header"></div>
+      <div class="skeleton-wall">
+        <div class="skeleton-card"><div class="skeleton-img"></div><div class="skeleton-text"></div></div>
+        <div class="skeleton-card"><div class="skeleton-img"></div><div class="skeleton-text"></div></div>
+        <div class="skeleton-card"><div class="skeleton-img"></div><div class="skeleton-text"></div></div>
+        <div class="skeleton-card"><div class="skeleton-img"></div><div class="skeleton-text"></div></div>
+        <div class="skeleton-card"><div class="skeleton-img"></div><div class="skeleton-text"></div></div>
+        <div class="skeleton-card"><div class="skeleton-img"></div><div class="skeleton-text"></div></div>
+        <div class="skeleton-card"><div class="skeleton-img"></div><div class="skeleton-text"></div></div>
+        <div class="skeleton-card"><div class="skeleton-img"></div><div class="skeleton-text"></div></div>
+      </div>
+    </div>
   </div>
-
-  <div class="grid" id="results-grid"></div>
 </div>
 
-<div class="lightbox" id="lightbox" onclick="this.classList.remove('on')">
-  <img id="lightbox-img">
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <div class="lightbox-inner" onclick="event.stopPropagation()">
+    <img id="lightbox-img" src="" alt="">
+    <div class="lightbox-caption" id="lightbox-caption"></div>
+  </div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -170,13 +221,11 @@ function handleAuth() {
 }
 
 async function loadResults() {
-  document.getElementById('hero-sub').textContent = '불러오는 중...';
-  document.getElementById('results-grid').innerHTML = '';
   try {
     const snap = await db.collection('users').doc(currentUser.uid).collection('results')
       .orderBy('createdAt', 'desc').get();
     allResults = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderResults();
+    renderBoards();
   } catch(e) {
     console.error(e);
     document.getElementById('hero-sub').textContent = '불러오기 실패';
@@ -188,56 +237,97 @@ function setSort(type) {
   currentSort = type;
   document.getElementById('sort-date').classList.toggle('on', type === 'date');
   document.getElementById('sort-score').classList.toggle('on', type === 'score');
-  renderResults();
+  renderBoards();
 }
 
-function renderResults() {
-  const sorted = [...allResults].sort((a, b) => {
-    if (currentSort === 'score') return b.score - a.score;
-    const ta = a.createdAt?.seconds || 0;
-    const tb = b.createdAt?.seconds || 0;
-    return tb - ta;
-  });
+function renderBoards() {
+  const container = document.getElementById('boards-container');
+  document.getElementById('skeleton')?.remove();
 
-  const grid = document.getElementById('results-grid');
-  document.getElementById('count-label').textContent = `총 ${sorted.length}개`;
-  document.getElementById('hero-sub').textContent = `${sorted.length}개의 이미지가 저장되어 있어요.`;
-
-  if (!sorted.length) {
-    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="ei">🎨</div><p>아직 저장된 이미지가 없어요.<br>메인 페이지에서 이미지를 생성해보세요!</p></div>`;
+  if (!allResults.length) {
+    document.getElementById('hero-sub').textContent = '아직 저장된 이미지가 없어요.';
+    container.innerHTML = `<div class="empty-board" style="max-width:1400px;margin:0 auto"><div class="ei">🎨</div><p>메인 페이지에서 이미지를 생성하면 여기에 나타나요!</p></div>`;
     return;
   }
 
-  grid.innerHTML = sorted.map(r => {
-    const date = r.createdAt ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
-    const scoreCls = Math.min(r.score, 10);
-    const label = scoreLabel[r.score] || `⭐ ${r.score}점`;
+  // CSV별 그룹핑
+  const groups = {};
+  allResults.forEach(r => {
+    const key = r.csvTitle || '미분류';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(r);
+  });
+
+  // 각 그룹의 최신 생성 시각으로 그룹 정렬
+  const sortedGroups = Object.entries(groups).sort((a, b) => {
+    const la = Math.max(...a[1].map(r => r.createdAt?.seconds || 0));
+    const lb = Math.max(...b[1].map(r => r.createdAt?.seconds || 0));
+    return lb - la;
+  });
+
+  const total = allResults.length;
+  document.getElementById('hero-sub').textContent = `${sortedGroups.length}개 수업 · 총 ${total}개 이미지`;
+
+  container.innerHTML = sortedGroups.map(([title, items]) => {
+    // 그룹 내 카드 정렬
+    const sorted = [...items].sort((a, b) => {
+      if (currentSort === 'score') return b.score - a.score;
+      return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
+    });
+
+    // 그룹 날짜: 가장 최근 생성일
+    const latestTs = Math.max(...items.map(r => r.createdAt?.seconds || 0));
+    const latestDate = latestTs ? new Date(latestTs * 1000).toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric'}) : '';
+
     return `
-    <div class="card" id="card-${r.id}">
-      <div class="card-img" onclick="openLightbox('${r.imageUrl}')">
-        ${r.imageUrl ? `<img src="${r.imageUrl}" alt="생성 이미지" loading="lazy">` : '<div class="no-img">🎨</div>'}
+    <div class="board" id="board-${CSS.escape(title)}">
+      <div class="board-header">
+        <span class="board-icon">📄</span>
+        <span class="board-title">${escHtml(title)}</span>
+        <span class="board-count">${items.length}개</span>
+        <span class="board-meta">${latestDate}</span>
       </div>
-      <div class="card-body">
-        <div class="card-meta">
-          <span class="s-badge s${scoreCls}">${label}</span>
-          <span class="card-label">${r.label || ''} 학생 · ${r.studentNum}번</span>
-          <span class="card-date">${date}</span>
-        </div>
-        <p class="card-prompt" id="prompt-${r.id}">${r.promptKo || r.promptEn || ''}</p>
-        <button class="expand-btn" onclick="togglePrompt('${r.id}')">더 보기 ▾</button>
-        <div class="memo-label">메모</div>
-        <textarea class="memo" id="memo-${r.id}" placeholder="메모를 입력하세요..." onblur="saveMemo('${r.id}', this.value)">${r.memo || ''}</textarea>
-        <div class="card-actions">
-          <button class="btn-red btn" onclick="deleteResult('${r.id}', '${r.imagePath}')">🗑 삭제</button>
-          <span class="save-indicator" id="si-${r.id}">✓ 저장됨</span>
-        </div>
+      <div class="wall">
+        ${sorted.map(r => renderCard(r)).join('')}
       </div>
     </div>`;
   }).join('');
 }
 
-function togglePrompt(id) {
-  const el = document.getElementById(`prompt-${id}`);
+function renderCard(r) {
+  const date = r.createdAt ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', {month:'short',day:'numeric'}) : '';
+  const scoreCls = Math.min(r.score || 0, 10);
+  const label = scoreLabel[r.score] || `⭐ ${r.score}점`;
+  const prompt = escHtml(r.promptKo || r.promptEn || '');
+  const memo = escHtml(r.memo || '');
+  const safeId = r.id.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+  return `
+  <div class="wcard" id="card-${safeId}">
+    <div class="wcard-img" onclick="openLightbox('${escHtml(r.imageUrl || '')}', '${prompt.replace(/'/g,'&#39;')}')">
+      ${r.imageUrl
+        ? `<img src="${escHtml(r.imageUrl)}" alt="생성 이미지" loading="lazy">`
+        : '<div class="no-img">🎨</div>'}
+    </div>
+    <div class="wcard-body">
+      <div class="wcard-top">
+        <span class="s-badge s${scoreCls}">${label}</span>
+        <span class="wcard-label">${escHtml(r.label || '')} 학생 · ${escHtml(String(r.studentNum || ''))}</span>
+        <span class="wcard-date">${date}</span>
+      </div>
+      ${prompt ? `<p class="wcard-prompt" id="pr-${safeId}">${prompt}</p>
+      <button class="expand-btn" onclick="togglePrompt('${safeId}')">더 보기 ▾</button>` : ''}
+      <textarea class="memo-area" id="memo-${safeId}" placeholder="메모..." rows="2" onblur="saveMemo('${r.id}', this.value)">${memo}</textarea>
+      <div class="wcard-actions">
+        <button class="del-btn" onclick="deleteResult('${r.id}', '${escHtml(r.imagePath || '')}')">🗑 삭제</button>
+        <span class="saved-dot" id="si-${safeId}">✓ 저장됨</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function togglePrompt(safeId) {
+  const el = document.getElementById(`pr-${safeId}`);
   const btn = el.nextElementSibling;
   el.classList.toggle('expanded');
   btn.textContent = el.classList.contains('expanded') ? '접기 ▴' : '더 보기 ▾';
@@ -245,11 +335,11 @@ function togglePrompt(id) {
 
 async function saveMemo(docId, memo) {
   if (!currentUser) return;
+  const safeId = docId.replace(/[^a-zA-Z0-9_-]/g, '_');
   try {
     await db.collection('users').doc(currentUser.uid).collection('results').doc(docId).update({ memo });
-    const si = document.getElementById(`si-${docId}`);
-    si.classList.add('on');
-    setTimeout(() => si.classList.remove('on'), 2000);
+    const si = document.getElementById(`si-${safeId}`);
+    if (si) { si.classList.add('on'); setTimeout(() => si.classList.remove('on'), 2000); }
     const r = allResults.find(r => r.id === docId);
     if (r) r.memo = memo;
   } catch(e) {
@@ -259,24 +349,41 @@ async function saveMemo(docId, memo) {
 
 async function deleteResult(docId, imagePath) {
   if (!confirm('이 결과를 삭제할까요?')) return;
+  const safeId = docId.replace(/[^a-zA-Z0-9_-]/g, '_');
   try {
     await db.collection('users').doc(currentUser.uid).collection('results').doc(docId).delete();
-    if (imagePath) {
-      await storage.ref(imagePath).delete().catch(() => {});
-    }
+    if (imagePath) await storage.ref(imagePath).delete().catch(() => {});
     allResults = allResults.filter(r => r.id !== docId);
-    const card = document.getElementById(`card-${docId}`);
-    if (card) card.remove();
-    document.getElementById('count-label').textContent = `총 ${allResults.length}개`;
+    const card = document.getElementById(`card-${safeId}`);
+    if (card) { card.style.opacity = '0'; card.style.transform = 'scale(.9)'; card.style.transition = 'all .25s'; setTimeout(() => { card.remove(); updateBoardCounts(); }, 250); }
     toast('삭제 완료');
   } catch(e) {
     toast('삭제 실패: ' + e.message);
   }
 }
 
-function openLightbox(src) {
+function updateBoardCounts() {
+  const total = allResults.length;
+  document.getElementById('hero-sub').textContent = `총 ${total}개 이미지`;
+  // 빈 보드 제거
+  document.querySelectorAll('.board').forEach(board => {
+    if (!board.querySelector('.wcard')) board.remove();
+  });
+}
+
+function openLightbox(src, caption) {
+  if (!src) return;
   document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox-caption').textContent = caption || '';
   document.getElementById('lightbox').classList.add('on');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('on');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function toast(msg) {

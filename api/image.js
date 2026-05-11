@@ -26,22 +26,26 @@ export default async function handler(req, res) {
     if (b64) return res.status(200).json({ mime: 'image/png', data: b64 });
   }
 
-  // Gemini 2.0 Flash 이미지 생성 fallback
-  const r2 = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
-        generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
-      })
-    }
-  );
+  // Gemini 2.0 Flash 이미지 생성 fallback (재시도 포함)
+  const imgBody = JSON.stringify({
+    contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
+    generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
+  });
+  let r2, lastImgErr;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    r2 = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${apiKey}`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: imgBody }
+    );
+    if (r2.ok) break;
+    const err = await r2.json().catch(() => ({}));
+    lastImgErr = err?.error?.message || `Image API error ${r2.status}`;
+    if (r2.status !== 503 && r2.status !== 429) break;
+    if (attempt < 2) await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
+  }
 
   if (!r2.ok) {
-    const err = await r2.json().catch(() => ({}));
-    return res.status(r2.status).json({ error: err?.error?.message || `Image API error ${r2.status}` });
+    return res.status(r2.status).json({ error: lastImgErr });
   }
 
   const d2 = await r2.json();

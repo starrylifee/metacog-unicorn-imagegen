@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>그림 감상 → 이미지 ✨</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
 <script src="config.js" onerror="window.GEMINI_API_KEY=undefined"></script>
@@ -294,6 +295,7 @@ async function saveResult(s, promptEn, promptKo, img) {
       imageUrl,
       imagePath: path,
       memo: '',
+      csvTitle: csvTitle || '미분류',
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     toast('☁️ 저장 완료!');
@@ -309,7 +311,7 @@ if(typeof GEMINI_API_KEY !== 'undefined' && GEMINI_API_KEY && !GEMINI_API_KEY.in
   document.getElementById('api-key').placeholder = '🔑 config.js에서 로드됨';
 }
 
-let students = [], selIdx = null, globalMaxScore = 5;
+let students = [], selIdx = null, globalMaxScore = 5, csvTitle = '';
 
 // CSV parser
 function parseCSV(t) {
@@ -599,7 +601,7 @@ dz.addEventListener('drop',e=>{
   if(f){const dt=new DataTransfer();dt.items.add(f);document.getElementById('csv-input').files=dt.files;showFileName(f.name);}
 });
 document.getElementById('csv-input').addEventListener('change',e=>{if(e.target.files[0])showFileName(e.target.files[0].name);});
-function showFileName(n){const el=document.getElementById('file-name');el.textContent='📄 '+n;el.classList.remove('hidden');}
+function showFileName(n){const el=document.getElementById('file-name');el.textContent='📄 '+n;el.classList.remove('hidden');csvTitle=n.replace(/\.csv$/i,'');}
 
 function resetApp(){
   students=[];selIdx=null;

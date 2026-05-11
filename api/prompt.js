@@ -23,22 +23,31 @@ export default async function handler(req, res) {
 출력 형식 (JSON만, 다른 텍스트 없이):
 {"en": "영어 이미지 프롬프트 (${wordLimit}단어 이내)", "ko": "위 영어 프롬프트의 자연스러운 한국어 번역"}`;
 
-  const geminiRes = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: sys }] },
-        contents: [{ role: 'user', parts: [{ text: `학생 ${studentNum}번, 점수 ${score}점\n\n대화:\n${conv}` }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 2000, responseMimeType: 'application/json' }
-      })
+  const models = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+  const body = JSON.stringify({
+    systemInstruction: { parts: [{ text: sys }] },
+    contents: [{ role: 'user', parts: [{ text: `학생 ${studentNum}번, 점수 ${score}점\n\n대화:\n${conv}` }] }],
+    generationConfig: { temperature: 0.7, maxOutputTokens: 2000, responseMimeType: 'application/json' }
+  });
+
+  let geminiRes, lastErr;
+  for (const model of models) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      geminiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }
+      );
+      if (geminiRes.ok) break;
+      const err = await geminiRes.json().catch(() => ({}));
+      lastErr = err?.error?.message || `Gemini error ${geminiRes.status}`;
+      if (geminiRes.status !== 503 && geminiRes.status !== 429) break;
+      if (attempt < 2) await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
     }
-  );
+    if (geminiRes.ok) break;
+  }
 
   if (!geminiRes.ok) {
-    const err = await geminiRes.json().catch(() => ({}));
-    return res.status(geminiRes.status).json({ error: err?.error?.message || `Gemini error ${geminiRes.status}` });
+    return res.status(geminiRes.status).json({ error: lastErr });
   }
 
   const data = await geminiRes.json();
