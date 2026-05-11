@@ -313,6 +313,19 @@ if(typeof GEMINI_API_KEY !== 'undefined' && GEMINI_API_KEY && !GEMINI_API_KEY.in
 
 let students = [], selIdx = null, globalMaxScore = 5, csvTitle = '';
 
+function safePrompt(text) {
+  if (!text) return '';
+  const t = text.trim();
+  if (t.startsWith('{') || t.startsWith('```')) {
+    try {
+      const clean = t.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+      const p = JSON.parse(clean);
+      return p.ko || p.en || text;
+    } catch { return text; }
+  }
+  return text;
+}
+
 // CSV parser
 function parseCSV(t) {
   const rows=[];let i=0,row=[],f='',q=false;
@@ -370,7 +383,7 @@ async function extractTopPrompts(topStudents) {
     try {
       const { en: promptEn, ko: promptKo } = await extractPrompt(s, apiKey);
       el.innerHTML = `<div style="font-size:13px;font-weight:600;margin-bottom:6px">${s.label} 학생의 감상 프롬프트</div>
-        <div style="font-size:14px;line-height:1.7">${promptKo}</div>`;
+        <div style="font-size:14px;line-height:1.7">${safePrompt(promptKo)}</div>`;
     } catch(e) {
       el.innerHTML = `<div style="font-size:13px;font-weight:600;margin-bottom:4px">${s.label} 학생</div>
         <div style="font-size:13px;opacity:.7">❌ ${e.message.slice(0,40)}</div>`;
@@ -438,7 +451,7 @@ function selectStudent(idx) {
   document.getElementById('dl-wrap').innerHTML='';
   // 이미 생성된 이미지가 있으면 바로 표시
   if(s._img && s._prompt) {
-    document.getElementById('prompt-txt').textContent = s._promptKo || s._prompt;
+    document.getElementById('prompt-txt').textContent = safePrompt(s._promptKo || s._prompt);
     document.getElementById('prompt-txt').style.cssText='font-style:italic;color:#333';
     document.getElementById('img-frame').innerHTML=`<img src="data:${s._img.mime};base64,${s._img.data}" alt="생성 이미지" onclick="openLightbox(this.src)" style="cursor:zoom-in">`;
     document.getElementById('dl-wrap').innerHTML=`<button class="btn btn-dark" style="width:100%;padding:13px" onclick="downloadImage()">💾 이미지 다운로드</button>`;
@@ -480,7 +493,7 @@ async function generateForSelected() {
   document.getElementById('dl-wrap').innerHTML='';
   try {
     const { en: promptEn, ko: promptKo } = await extractPrompt(s, apiKey);
-    document.getElementById('prompt-txt').textContent = promptKo;
+    document.getElementById('prompt-txt').textContent = safePrompt(promptKo);
     document.getElementById('prompt-txt').style.cssText='font-style:italic;color:#333';
     const img = await generateImage(promptEn, apiKey);
     // 캐시 저장

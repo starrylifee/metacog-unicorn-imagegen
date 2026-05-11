@@ -23,45 +23,42 @@ export default async function handler(req, res) {
 출력 형식 (JSON만, 다른 텍스트 없이):
 {"en": "영어 이미지 프롬프트 (${wordLimit}단어 이내)", "ko": "위 영어 프롬프트의 자연스러운 한국어 번역"}`;
 
-  const models = ['gemini-2.5-flash', 'gemini-2.0-flash'];
-  const body = JSON.stringify({
+  const reqBody = JSON.stringify({
     systemInstruction: { parts: [{ text: sys }] },
     contents: [{ role: 'user', parts: [{ text: `학생 ${studentNum}번, 점수 ${score}점\n\n대화:\n${conv}` }] }],
     generationConfig: { temperature: 0.7, maxOutputTokens: 2000, responseMimeType: 'application/json' }
   });
 
-  let geminiRes, lastErr;
+  // 딜레이 없이 모델 폴백만 (Vercel 10초 타임아웃 준수)
+  const models = ['gemini-2.5-flash', 'gemini-1.5-flash'];
+  let lastStatus = 500, lastMsg = 'Unknown error';
+
   for (const model of models) {
-    for (let attempt = 0; attempt < 3; attempt++) {
-      geminiRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }
-      );
-      if (geminiRes.ok) break;
-      const err = await geminiRes.json().catch(() => ({}));
-      lastErr = err?.error?.message || `Gemini error ${geminiRes.status}`;
-      if (geminiRes.status !== 503 && geminiRes.status !== 429) break;
-      if (attempt < 2) await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
+    const r = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: reqBody }
+    );
+    if (r.ok) {
+      const data = await r.json();
+      let raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '{}';
+      // 마크다운 코드블록 제거 (```json ... ``` 또는 ``` ... ```)
+      raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+      let prompt = '', promptKo = '';
+      try {
+        const parsed = JSON.parse(raw);
+        prompt = parsed.en || '';
+        promptKo = parsed.ko || parsed.en || '';
+      } catch {
+        prompt = raw;
+        promptKo = raw;
+      }
+      return res.status(200).json({ prompt, promptKo });
     }
-    if (geminiRes.ok) break;
+    const err = await r.json().catch(() => ({}));
+    lastStatus = r.status;
+    lastMsg = err?.error?.message || `Gemini error ${r.status}`;
+    if (r.status !== 503 && r.status !== 429) break;
   }
 
-  if (!geminiRes.ok) {
-    return res.status(geminiRes.status).json({ error: lastErr });
-  }
-
-  const data = await geminiRes.json();
-  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '{}';
-
-  let prompt = '', promptKo = '';
-  try {
-    const parsed = JSON.parse(raw);
-    prompt = parsed.en || '';
-    promptKo = parsed.ko || parsed.en || '';
-  } catch {
-    prompt = raw;
-    promptKo = raw;
-  }
-
-  return res.status(200).json({ prompt, promptKo });
+  return res.status(lastStatus).json({ error: lastMsg });
 }
