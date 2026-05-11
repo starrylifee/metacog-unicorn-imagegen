@@ -14,13 +14,9 @@ export default async function handler(req, res) {
    - 점수 낮음: 모호하고 단순한 장면, 학생이 언급한 극히 일부만 반영
    - 점수 높음: 풍부한 묘사, 상상력 확장 포함
 3. 학생의 스토리 해석(감정, 내러티브)도 시각화하세요.
-4. 원작(이중섭 흰소)처럼 그리지 마세요. 학생 언어 그대로만.
+4. 원작 스타일이나 화풍을 추가하지 마세요. 학생이 언급한 것만.
 5. 출력: 영어 프롬프트만, 100단어 이내.
-6. [안전 필수] 인물이 등장할 경우 반드시 귀여운 만화 캐릭터(chibi, cartoon character, illustrated figure)로 묘사하세요.
-   - 사실적인 인체 묘사, 실루엣, 나체, 반나체, 성인 콘텐츠 절대 금지.
-   - 단색 사람 형태(빨간 사람, 검은 사람 등 실루엣처럼 보이는 표현)도 금지.
-   - 예: "a red figure" 대신 "a cheerful cartoon character in red" 로 표현.
-7. 동물, 사물, 자연 등 배경 요소는 자유롭게 묘사하되 전체적으로 학생 친화적(child-friendly) 이미지여야 합니다.`;
+6. 인물이 등장할 경우 색면, 단순 도형, 종이 콜라주 형태 등 추상적·평면적으로만 묘사하세요. 사실적 인체, 실루엣, 나체/반나체 표현 모두 금지.`;
 
   const geminiRes = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
@@ -42,5 +38,24 @@ export default async function handler(req, res) {
 
   const data = await geminiRes.json();
   const prompt = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
-  return res.status(200).json({ prompt });
+
+  const trRes = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: '영어 이미지 프롬프트를 자연스러운 한국어로 번역해주세요. 번역만 출력.' }] },
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.3, maxOutputTokens: 500 }
+      })
+    }
+  );
+  let promptKo = prompt;
+  if (trRes.ok) {
+    const td = await trRes.json();
+    promptKo = td.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || prompt;
+  }
+
+  return res.status(200).json({ prompt, promptKo });
 }

@@ -285,8 +285,7 @@ async function extractTopPrompts(topStudents) {
   for(const s of topStudents) {
     const el = document.getElementById(`top-p-${s.label}`);
     try {
-      const promptEn = await extractPrompt(s, apiKey);
-      const promptKo = await translateToKorean(promptEn, apiKey);
+      const { en: promptEn, ko: promptKo } = await extractPrompt(s, apiKey);
       el.innerHTML = `<div style="font-size:13px;font-weight:600;margin-bottom:6px">${s.label} 학생의 감상 프롬프트</div>
         <div style="font-size:14px;line-height:1.7">${promptKo}</div>`;
     } catch(e) {
@@ -397,9 +396,7 @@ async function generateForSelected() {
   document.getElementById('prompt-txt').textContent='프롬프트 생성 중...';
   document.getElementById('dl-wrap').innerHTML='';
   try {
-    const promptEn = await extractPrompt(s, apiKey);
-    document.getElementById('prompt-txt').textContent = '한글 번역 중...';
-    const promptKo = await translateToKorean(promptEn, apiKey);
+    const { en: promptEn, ko: promptKo } = await extractPrompt(s, apiKey);
     document.getElementById('prompt-txt').textContent = promptKo;
     document.getElementById('prompt-txt').style.cssText='font-style:italic;color:#333';
     const img = await generateImage(promptEn, apiKey);
@@ -434,7 +431,8 @@ async function extractPrompt(s, apiKey) {
   if(isVercel) {
     const res = await fetch('/api/prompt',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({studentNum:s.num,score:s.score,conv:s.conv})});
     if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e?.error||`서버 오류 ${res.status}`);}
-    return (await res.json()).prompt;
+    const d=await res.json();
+    return { en: d.prompt, ko: d.promptKo || d.prompt };
   }
   const wordCounts = {1:15, 2:30, 3:60, 4:90, 5:120};
   const wc = wordCounts[s.score] || 60;
@@ -455,7 +453,9 @@ async function extractPrompt(s, apiKey) {
   });
   if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e?.error?.message||`텍스트 API 오류 ${res.status}`);}
   const d=await res.json();
-  return d.candidates?.[0]?.content?.parts?.[0]?.text?.trim()||'프롬프트 생성 실패';
+  const en = d.candidates?.[0]?.content?.parts?.[0]?.text?.trim()||'프롬프트 생성 실패';
+  const ko = await translateToKorean(en, apiKey);
+  return { en, ko };
 }
 
 async function translateToKorean(text, apiKey) {
@@ -560,7 +560,7 @@ async function generateAll() {
     const st = document.getElementById(`status-${i}`);
     st.className='card-status wait'; st.textContent='⏳ 생성 중...';
     try {
-      const prompt = await extractPrompt(s, apiKey);
+      const { en: prompt } = await extractPrompt(s, apiKey);
       const img = await generateImage(prompt, apiKey);
       document.getElementById(`thumb-${i}`).innerHTML = `<img src="data:${img.mime};base64,${img.data}">`;
       students[i]._img = img;

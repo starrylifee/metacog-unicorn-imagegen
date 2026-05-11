@@ -5,20 +5,7 @@ export default async function handler(req, res) {
   if (!apiKey) return res.status(500).json({ error: 'GEMINI_API_KEY not configured' });
 
   const { prompt } = req.body;
-  const safetyModifiers = [
-    'cartoon illustration style',
-    'chibi characters',
-    'child-friendly',
-    'safe for school',
-    'no nudity',
-    'no silhouettes',
-    'no realistic human figures',
-    'no adult content',
-    'expressive brushwork painting',
-    'artistic',
-    'emotional'
-  ].join(', ');
-  const fullPrompt = prompt + ', ' + safetyModifiers;
+  const fullPrompt = prompt + ', expressive brushwork painting, artistic, emotional, no nudity, no adult content';
 
   // Imagen 3 시도
   const r1 = await fetch(
