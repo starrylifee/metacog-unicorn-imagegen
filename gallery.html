@@ -188,8 +188,9 @@ window.enter = async function(){
     const room=snap.data();
     const paintings=room.paintings||[];
     if(!paintings.length) throw new Error('이 갤러리에 아직 작품이 없어요 🎨');
-    document.getElementById('rlabel').textContent=`🖼 ${room.studentName||room.studentNum||'나의'} 의 갤러리  ·  ${paintings.length}개 작품`;
-    await initScene(paintings, room.studentName||room.studentNum||'갤러리');
+    const displayNum=room.studentNum||room.studentName||'나의';
+    document.getElementById('rlabel').textContent=`🖼 ${displayNum}번 갤러리  ·  ${paintings.length}개 작품`;
+    await initScene(paintings, displayNum);
   }catch(e){
     document.getElementById('loading').style.display='none';
     document.getElementById('entry').style.display='flex';
@@ -290,7 +291,7 @@ function buildRoom(label){
   });
 
   // Name plate on north wall
-  const nameTex=makeTextTexture(label+'의 갤러리', 600, 80, 32, '#C8FA4C');
+  const nameTex=makeTextTexture(label+'번 갤러리', 600, 80, 32, '#C8FA4C');
   const namePlate=new THREE.Mesh(
     new THREE.PlaneGeometry(3,0.4),
     new THREE.MeshBasicMaterial({map:nameTex,transparent:true})
@@ -352,7 +353,7 @@ async function loadPaintings(paintings){
         document.getElementById('ld-sub').textContent=`${done} / ${paintings.length} 작품 완료`;
         res();
       };
-      if(p.imageUrl) loader.load(p.imageUrl, place, undefined, ()=>place(null));
+      if(p.imageUrl) loader.load(imgUrl(p.imageUrl), place, undefined, ()=>place(null));
       else place(null);
     });
   }));
@@ -437,6 +438,15 @@ function makeLabel(data){
   return new THREE.CanvasTexture(cv);
 }
 
+function imgUrl(url){
+  if(!url) return '';
+  // Vercel 배포 환경에서는 CORS 프록시 경유
+  if(location.hostname.includes('vercel.app')||location.hostname==='localhost'||location.hostname==='127.0.0.1'){
+    return '/api/imgproxy?url='+encodeURIComponent(url);
+  }
+  return url;
+}
+
 function safePrompt(t){
   if(!t) return '';
   const s=t.trim();
@@ -454,7 +464,7 @@ window.openPanel=function(mesh){
   document.getElementById('hint').style.display='none';
   document.getElementById('ihint').style.display='none';
   const sc=Math.min(d.score||0,10);
-  document.getElementById('panel-img').src=d.imageUrl||'';
+  document.getElementById('panel-img').src=imgUrl(d.imageUrl||'');
   document.getElementById('p-badge').className=`p-badge p${sc}`;
   document.getElementById('p-badge').textContent=`${scoreLabel[sc]} ${scoreText[sc]||d.score+'점'}`;
   document.getElementById('p-name').textContent=`${d.label||''} 학생`;
