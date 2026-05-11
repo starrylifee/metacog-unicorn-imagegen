@@ -6,17 +6,20 @@ export default async function handler(req, res) {
 
   const { studentNum, score, conv } = req.body;
 
+  const wordLimit = score <= 1 ? 50 : score <= 2 ? 80 : score <= 3 ? 120 : score <= 4 ? 160 : 220;
+
   const sys = `당신은 학생의 미술 감상 대화를 분석해 영어 이미지 생성 프롬프트를 만드는 AI입니다.
 
 규칙:
 1. 학생이 실제로 언급한 것만 사용. 원본 작품 정보 절대 추가 금지.
-2. 점수 ${score}/5가 프롬프트 품질에 반영:
-   - 점수 낮음: 모호하고 단순한 장면, 학생이 언급한 극히 일부만 반영
-   - 점수 높음: 풍부한 묘사, 상상력 확장 포함
-3. 학생의 스토리 해석(감정, 내러티브)도 시각화하세요.
-4. 원작 스타일이나 화풍을 추가하지 마세요. 학생이 언급한 것만.
-5. 출력: 영어 프롬프트만, 100단어 이내.
-6. 인물이 등장할 경우 색면, 단순 도형, 종이 콜라주 형태 등 추상적·평면적으로만 묘사하세요. 사실적 인체, 실루엣, 나체/반나체 표현 모두 금지.`;
+2. 학생이 언급한 색, 형태, 위치, 감정, 이야기를 빠짐없이 포함하세요. 요약하지 말고 대화 내용에 충실하게.
+3. 점수 ${score}/5가 프롬프트 품질에 반영:
+   - 점수 낮음: 학생이 언급한 일부만 단순하게 반영
+   - 점수 높음: 언급한 모든 요소를 풍부하고 구체적으로 반영
+4. 학생의 감정·내러티브 해석도 시각적으로 표현하세요.
+5. 원작 스타일이나 화풍을 추가하지 마세요. 학생이 언급한 것만.
+6. 출력: 영어 프롬프트만, ${wordLimit}단어 이내.
+7. 인물이 등장할 경우 색면, 단순 도형, 종이 콜라주 형태 등 추상적·평면적으로만 묘사하세요. 사실적 인체, 실루엣, 나체/반나체 표현 모두 금지.`;
 
   const geminiRes = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
@@ -26,7 +29,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: sys }] },
         contents: [{ role: 'user', parts: [{ text: `학생 ${studentNum}번, 점수 ${score}/5\n\n대화:\n${conv}` }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 300 }
+        generationConfig: { temperature: 0.7, maxOutputTokens: 800 }
       })
     }
   );
