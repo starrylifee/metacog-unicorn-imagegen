@@ -1,6 +1,7 @@
 export default async function handler(req, res) {
-  const url = req.query.url ? decodeURIComponent(req.query.url) : '';
-  if (!url || !url.startsWith('https://firebasestorage.googleapis.com/')) {
+  // Vercel already URL-decodes query params — do NOT call decodeURIComponent again
+  const url = req.query.url || '';
+  if (!url.startsWith('https://firebasestorage.googleapis.com/')) {
     return res.status(400).end('invalid url');
   }
   try {
