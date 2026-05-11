@@ -10,13 +10,13 @@
 body{font-family:'Inter',system-ui,sans-serif;background:#0a0a0f;color:#fff;overflow:hidden;height:100dvh;width:100vw;-webkit-font-smoothing:antialiased}
 
 /* ── ENTRY ── */
-#entry{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 60%,#1a1030 0%,#060608 100%);z-index:100;gap:20px;padding:24px}
+#entry{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 45%,#241b44 0%,#120f20 55%,#09080f 100%);z-index:100;gap:20px;padding:24px}
 .e-icon{font-size:52px;line-height:1}
 .e-title{font-size:26px;font-weight:700;letter-spacing:-.5px}
 .e-sub{font-size:14px;color:#666;text-align:center;max-width:260px;line-height:1.6}
 .code-row{display:flex;gap:8px;width:100%;max-width:300px}
-#code-inp{flex:1;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px 16px;font-size:22px;font-weight:700;letter-spacing:5px;text-transform:uppercase;color:#fff;text-align:center;font-family:'JetBrains Mono',monospace;transition:border-color .2s}
-#code-inp:focus{outline:none;border-color:#C8FA4C}
+#code-inp{flex:1;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.18);border-radius:12px;padding:14px 16px;font-size:22px;font-weight:700;letter-spacing:5px;text-transform:uppercase;color:#fff;text-align:center;font-family:'JetBrains Mono',monospace;transition:border-color .2s,box-shadow .2s}
+#code-inp:focus{outline:none;border-color:#C8FA4C;box-shadow:0 0 0 3px rgba(200,250,76,.15)}
 #code-inp::placeholder{opacity:.2;letter-spacing:2px}
 .go-btn{background:#C8FA4C;color:#0a0a0a;border:none;border-radius:12px;padding:14px 18px;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .15s;white-space:nowrap}
 .go-btn:hover{opacity:.85}
@@ -169,14 +169,6 @@ window.enter = async function(){
   errEl.textContent='';
   document.querySelector('.go-btn').disabled=true;
 
-  // Firebase 인증 대기
-  await new Promise(res=>{
-    const u=firebase.auth().currentUser;
-    if(u){res();return;}
-    const off=firebase.auth().onAuthStateChanged(u2=>{if(u2){off();res();}});
-    setTimeout(res, 3000); // 타임아웃 폴백
-  });
-
   document.getElementById('entry').style.display='none';
   document.getElementById('loading').style.display='flex';
 
@@ -200,8 +192,8 @@ window.enter = async function(){
 /* ── 3D init ── */
 async function initScene(paintings, studentName){
   scene=new THREE.Scene();
-  scene.background=new THREE.Color(0x06060a);
-  scene.fog=new THREE.FogExp2(0x06060a, 0.028);
+  scene.background=new THREE.Color(0x100e18);
+  scene.fog=new THREE.FogExp2(0x100e18, 0.012);
 
   camera=new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 60);
   camera.position.set(0,1.7,6);
@@ -212,7 +204,7 @@ async function initScene(paintings, studentName){
   renderer.shadowMap.enabled=true;
   renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure=1.1;
+  renderer.toneMappingExposure=1.6;
 
   controls=new PointerLockControls(camera, document.body);
   raycaster=new THREE.Raycaster();
@@ -255,10 +247,10 @@ async function initScene(paintings, studentName){
 
 /* ── room geometry ── */
 function buildRoom(label){
-  const wallMat=new THREE.MeshStandardMaterial({color:0xf2ede6,roughness:0.95,metalness:0});
-  const floorMat=new THREE.MeshStandardMaterial({color:0x2a1e14,roughness:0.85,metalness:0});
-  const ceilMat=new THREE.MeshStandardMaterial({color:0xffffff,roughness:1,metalness:0});
-  const skirtMat=new THREE.MeshStandardMaterial({color:0x7a5c3a,roughness:0.6,metalness:0.1});
+  const wallMat=new THREE.MeshStandardMaterial({color:0xf5ede0,roughness:0.90,metalness:0});
+  const floorMat=new THREE.MeshStandardMaterial({color:0x3d2812,roughness:0.75,metalness:0.04});
+  const ceilMat=new THREE.MeshStandardMaterial({color:0xf8f2ea,roughness:0.95,metalness:0});
+  const skirtMat=new THREE.MeshStandardMaterial({color:0x8a6840,roughness:0.5,metalness:0.15});
 
   // Floor
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(W,D),floorMat);
@@ -298,17 +290,40 @@ function buildRoom(label){
   scene.add(namePlate);
 
   // Ambient
-  scene.add(new THREE.AmbientLight(0xfff0d0,0.45));
+  scene.add(new THREE.AmbientLight(0xfff0d0, 0.85));
 
   // Ceiling spotlights (3×3 grid)
   for(let xi=-1;xi<=1;xi++) for(let zi=-1;zi<=1;zi++){
-    const sl=new THREE.SpotLight(0xffe8c0, 1.8, 14, Math.PI/5, 0.6, 1);
+    const sl=new THREE.SpotLight(0xffe8c0, 3.2, 16, Math.PI/5, 0.55, 1);
     sl.position.set(xi*(W/3), H-0.05, zi*(D/3));
     sl.target.position.set(xi*(W/3),0,zi*(D/3));
     sl.castShadow=true;
     sl.shadow.mapSize.width=512; sl.shadow.mapSize.height=512;
     scene.add(sl); scene.add(sl.target);
   }
+
+  // Wall-wash lights — warm golden glow on each wall face
+  [[0,H*0.7,-D/2+0.8,0,0,-D/2],[W/2-0.8,H*0.7,0,W/2,0,0],
+   [0,H*0.7,D/2-0.8,0,0,D/2],[-W/2+0.8,H*0.7,0,-W/2,0,0]
+  ].forEach(([px,py,pz,tx,ty,tz])=>{
+    const wl=new THREE.SpotLight(0xffc850, 2.5, 14, Math.PI/2.2, 0.35, 1.2);
+    wl.position.set(px,py,pz); wl.target.position.set(tx,ty,tz);
+    scene.add(wl); scene.add(wl.target);
+  });
+
+  // Picture rail (bronze strip near ceiling on all 4 walls)
+  const railMat=new THREE.MeshStandardMaterial({color:0xc09050,roughness:0.28,metalness:0.45});
+  const railY=H-0.65;
+  // N/S walls (extend along X)
+  [[-D/2+0.02],[D/2-0.02]].forEach(([z])=>{
+    const r=new THREE.Mesh(new THREE.BoxGeometry(W,0.06,0.05),railMat);
+    r.position.set(0,railY,z); scene.add(r);
+  });
+  // E/W walls (extend along Z)
+  [[W/2-0.02],[-W/2+0.02]].forEach(([x])=>{
+    const r=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.06,D),railMat);
+    r.position.set(x,railY,0); scene.add(r);
+  });
 }
 
 /* ── painting slots ── */
