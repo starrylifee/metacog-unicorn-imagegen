@@ -1,0 +1,16 @@
+# API 키 — 절대 커밋하지 마세요!
+config.js
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+*.swp
+
+# Vercel
+.vercel/
+node_modules/

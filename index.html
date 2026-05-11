@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>그림 감상 → 이미지 ✨</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<script src="config.js" onerror="window.GEMINI_API_KEY=undefined"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --black:#0D0D0D;--white:#fff;
+  --lime:#C8FA4C;--lilac:#E4DEFF;--cream:#FFF8E6;--mint:#D2F5E2;--pink:#FFD6EB;--coral:#FF8B70;--navy:#16165A;
+  --soft:#F4F4F2;--line:#E4E4E2;
+  --r96:96px;--r48:48px;--r32:32px;--r24:24px;--r16:16px;--r8:8px;--r4:4px;
+}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--white);color:var(--black);font-size:18px;font-weight:350;line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:400;letter-spacing:.7px;text-transform:uppercase;opacity:.6}
+
+/* NAV */
+nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.9);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);height:58px;display:flex;align-items:center;padding:0 var(--r32);justify-content:space-between}
+.logo{font-size:17px;font-weight:600;letter-spacing:-.4px;display:flex;align-items:center;gap:6px}
+.logo-dot{width:8px;height:8px;background:var(--lime);border-radius:50%;border:2px solid var(--black)}
+.btn{border:none;border-radius:50px;padding:9px 20px;font-family:'Inter',sans-serif;font-size:15px;font-weight:500;cursor:pointer;transition:all .15s}
+.btn-dark{background:var(--black);color:var(--white)}.btn-dark:hover{opacity:.82}
+.btn-out{background:transparent;color:var(--black);border:1.5px solid var(--black)}.btn-out:hover{background:var(--soft)}
+
+/* HERO */
+.hero{padding:72px var(--r32) 48px;max-width:1200px;margin:0 auto}
+.hero h1{font-size:clamp(42px,5.5vw,78px);font-weight:380;line-height:1.02;letter-spacing:-2px;margin:16px 0 24px}
+.hero h1 em{font-style:normal;position:relative;display:inline-block}
+.hero h1 em::after{content:'';position:absolute;bottom:4px;left:0;right:0;height:6px;background:var(--lime);z-index:-1;border-radius:2px}
+.hero-sub{font-size:19px;font-weight:340;color:#444;max-width:520px;line-height:1.6;margin-bottom:32px}
+.tag{display:inline-flex;align-items:center;gap:6px;background:var(--soft);border-radius:50px;padding:6px 14px;font-size:13px;font-weight:500;margin-bottom:20px}
+
+/* UPLOAD BLOCK */
+.block{border-radius:20px;padding:var(--r48);margin:0 var(--r32) var(--r48)}
+.block-lime{background:var(--lime)}
+.block-lilac{background:var(--lilac)}
+.block-navy{background:var(--navy);color:var(--white)}
+.block-mint{background:var(--mint)}
+.block h2{font-size:clamp(24px,2.8vw,36px);font-weight:380;letter-spacing:-.5px;margin:12px 0 20px;line-height:1.2}
+.block-wrap{max-width:1200px;margin:0 auto}
+
+.drop{border:2px dashed rgba(0,0,0,.2);border-radius:14px;padding:36px 24px;text-align:center;cursor:pointer;transition:all .2s;position:relative}
+.drop:hover,.drop.over{border-color:var(--black);background:rgba(255,255,255,.35)}
+.drop input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+.drop-icon{font-size:36px;margin-bottom:10px}
+.drop-main{font-size:16px;font-weight:550;margin-bottom:4px}
+.drop-sub{font-size:13px;opacity:.6}
+.file-name{font-size:14px;font-weight:500;margin-top:8px;opacity:.8}
+
+.api-row{display:flex;gap:10px;margin-top:16px;align-items:center}
+.inp{flex:1;background:rgba(255,255,255,.8);border:1.5px solid rgba(0,0,0,.2);border-radius:10px;padding:12px 14px;font-family:'Inter',sans-serif;font-size:15px;transition:border-color .15s}
+.inp:focus{outline:none;border-color:var(--black);background:var(--white)}
+
+/* STUDENTS */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:var(--r96)}
+.card{background:var(--white);border:1.5px solid var(--line);border-radius:16px;padding:20px;cursor:pointer;transition:all .18s;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--lime);transform:scaleX(0);transition:transform .2s;transform-origin:left}
+.card:hover{border-color:#bbb;transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.07)}
+.card:hover::before,.card.active::before{transform:scaleX(1)}
+.card.active{border-color:var(--black)}
+.s-badge{display:inline-block;border-radius:50px;padding:3px 11px;font-size:12px;font-weight:600;margin-bottom:10px}
+.s0{background:#f5f5f5;color:#aaa}.s1{background:#eee;color:#666}.s2{background:#ddd;color:#444}.s3{background:#ccc;color:#333}.s4{background:#bbb;color:#222}.s5{background:#999;color:#fff}.s6{background:#777;color:#fff}.s7{background:#555;color:#fff}.s8{background:#333;color:#fff}.s9{background:#111;color:var(--lime)}.s10{background:var(--black);color:var(--lime)}
+.s-num{font-size:24px;font-weight:600;letter-spacing:-.5px;margin-bottom:2px}
+.s-stage{font-size:13px;opacity:.5;margin-bottom:10px}
+.s-fb{font-size:13px;line-height:1.55;color:#444}
+
+/* RESULT */
+.result-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.panel{background:rgba(255,255,255,.65);border-radius:14px;padding:20px}
+.panel-title{font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;opacity:.55;margin-bottom:12px}
+.conv{max-height:440px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+.conv::-webkit-scrollbar{width:4px}.conv::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:4px}
+.bubble{padding:8px 13px;border-radius:14px;font-size:14px;line-height:1.6;max-width:88%}
+.bubble.stu{background:var(--black);color:var(--white);align-self:flex-end;border-radius:14px 14px 2px 14px;font-weight:450}
+.bubble.bot{background:rgba(255,255,255,.8);color:#333;align-self:flex-start;border-radius:14px 14px 14px 2px}
+.prompt-txt{font-size:14px;line-height:1.7;color:#333;font-style:italic}
+.img-box{aspect-ratio:1;border-radius:14px;overflow:hidden;background:rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center}
+.img-box img{width:100%;height:100%;object-fit:cover}
+.placeholder{text-align:center;padding:32px;opacity:.5}
+.placeholder .pi{font-size:40px;margin-bottom:10px}
+.placeholder p{font-size:14px}
+.spin{width:36px;height:36px;border:3px solid rgba(0,0,0,.1);border-top-color:var(--black);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.gen-btn-wrap{margin-top:16px}
+.score-bar{display:flex;gap:4px;margin-bottom:14px}
+.score-pip{flex:1;height:5px;border-radius:3px;background:rgba(0,0,0,.08)}
+.score-pip.filled{background:var(--black)}
+
+/* BATCH */
+.batch-bar{display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap}
+.progress-wrap{flex:1;min-width:200px}
+.progress-outer{background:rgba(0,0,0,.08);border-radius:6px;height:8px;overflow:hidden}
+.progress-inner{height:100%;background:var(--black);border-radius:6px;transition:width .3s}
+.progress-label{font-size:13px;margin-top:4px;opacity:.6}
+.card-thumb{width:100%;aspect-ratio:1;border-radius:8px;overflow:hidden;margin-top:10px;background:var(--soft)}
+.card-thumb img{width:100%;height:100%;object-fit:cover}
+.card-status{font-size:11px;margin-top:6px;font-weight:500}
+.card-status.done{color:#2a7}
+.card-status.fail{color:#c33}
+.card-status.wait{color:#888}
+
+/* TOAST */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--black);color:var(--white);padding:10px 22px;border-radius:50px;font-size:14px;z-index:999;opacity:0;transition:all .25s;pointer-events:none}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* LIGHTBOX */
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;display:flex;align-items:center;justify-content:center;cursor:zoom-out;opacity:0;pointer-events:none;transition:opacity .25s}
+.lightbox.on{opacity:1;pointer-events:auto}
+.lightbox img{max-width:90vw;max-height:90vh;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.5)}
+
+footer{background:var(--navy);color:rgba(255,255,255,.5);padding:40px var(--r32);text-align:center;font-size:13px;margin-top:var(--r96)}
+footer span{color:rgba(255,255,255,.8);font-weight:500}
+
+.hidden{display:none!important}
+.sec-label{display:block;margin-bottom:8px}
+.sec-heading{font-size:clamp(28px,3vw,42px);font-weight:380;letter-spacing:-.5px;margin-bottom:24px}
+
+@media(max-width:900px){.result-grid{grid-template-columns:1fr}.block{padding:32px 24px;margin:0 16px var(--r32)}}
+@media(max-width:560px){nav{padding:0 16px}.hero{padding:48px 16px 32px}.hero h1{letter-spacing:-1px}.block{margin:0 0 24px;border-radius:0}.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo"><div class="logo-dot"></div>감상 → 이미지</div>
+  <div style="display:flex;gap:8px">
+    <button class="btn btn-out" onclick="resetApp()">처음으로</button>
+    <button class="btn btn-dark hidden" id="gen-btn" onclick="generateForSelected()">✨ 이미지 만들기</button>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="tag">🎨 미술 감상 메타인지 프로젝트</div>
+  <h1>네가 본 대로<br><em>그려줄게</em></h1>
+  <p class="hero-sub">학생이 챗봇과 나눈 감상 대화를 AI가 읽고, 그 언어 그대로 이미지를 그려요. 깊게 본 만큼 원작에 가까워지고, 피상적으로 보면 전혀 다른 그림이 나와요.</p>
+</section>
+
+<!-- UPLOAD -->
+<div class="block-wrap">
+<div class="block block-lime" id="upload-section">
+  <span class="mono sec-label">Step 01 — 파일 올리기</span>
+  <h2>CSV 파일을 가져오세요 📂</h2>
+  <div class="drop" id="drop-zone">
+    <input type="file" id="csv-input" accept=".csv">
+    <div class="drop-icon">📄</div>
+    <div class="drop-main">클릭하거나 여기에 파일을 끌어다 놓으세요</div>
+    <div class="drop-sub">미술감상_all.csv 형식</div>
+    <div class="file-name hidden" id="file-name">파일 선택됨</div>
+  </div>
+  <input type="hidden" id="api-key" value="">
+  <button class="btn btn-dark" style="width:100%;margin-top:16px;padding:13px" onclick="processFile()">분석 시작 →</button>
+</div>
+</div>
+
+<!-- STUDENTS -->
+<div class="block-wrap hidden" id="students-section">
+<div style="padding:0 var(--r32) 0;max-width:1200px;margin:0 auto">
+  <span class="mono sec-label" style="margin-top:64px;display:block">Step 02 — 학생 고르기</span>
+  <div class="sec-heading" id="students-title">학생들</div>
+  <div class="batch-bar hidden" id="batch-bar">
+    <button class="btn btn-dark" id="batch-btn" onclick="generateAll()">🚀 전체 이미지 생성 (5개씩)</button>
+    <button class="btn btn-out hidden" id="dl-all-btn" onclick="downloadAllImages()">💾 전체 다운로드 (ZIP)</button>
+    <div class="progress-wrap hidden" id="progress-wrap">
+      <div class="progress-outer"><div class="progress-inner" id="progress-bar" style="width:0%"></div></div>
+      <div class="progress-label" id="progress-label">준비 중...</div>
+    </div>
+  </div>
+  <div class="hidden" id="top-banner" style="background:var(--coral);color:#fff;padding:20px 24px;border-radius:16px;margin-bottom:20px">
+    <div id="top-title" style="font-size:16px;font-weight:600;margin-bottom:12px"></div>
+    <div id="top-prompts" style="display:flex;flex-direction:column;gap:10px"></div>
+  </div>
+  <div class="grid" id="students-grid"></div>
+</div>
+</div>
+
+<!-- RESULT -->
+<div class="block-wrap hidden" id="result-wrap">
+<div class="block block-lilac" id="result-section">
+  <span class="mono sec-label">Step 03 — 결과</span>
+  <h2 id="result-title">학생 번호: —</h2>
+  <div class="score-bar" id="score-bar"></div>
+  <div class="result-grid">
+    <div>
+      <div class="panel-title">💬 대화 내용</div>
+      <div class="panel"><div class="conv" id="conv-panel"></div></div>
+      <div class="gen-btn-wrap">
+        <button class="btn btn-dark" style="width:100%;justify-content:center;padding:13px" onclick="generateForSelected()">✨ 이 학생 이미지 만들기</button>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div>
+        <div class="panel-title">🤖 AI가 뽑아낸 프롬프트</div>
+        <div class="panel"><p class="prompt-txt" id="prompt-txt" style="color:#999;font-style:normal">이미지를 생성하면 여기에 프롬프트가 표시됩니다.</p></div>
+      </div>
+      <div>
+        <div class="panel-title">🖼 생성된 이미지</div>
+        <div class="img-box" id="img-frame">
+          <div class="placeholder"><div class="pi">🎨</div><p>위 버튼을 누르면<br>이미지가 나타나요</p></div>
+        </div>
+        <div id="dl-wrap" style="margin-top:10px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<footer>
+  <p><span>미술 감상 메타인지 이미지 생성기</span> · Powered by Gemini · 감상한 만큼 보인다 ✨</p>
+</footer>
+<div class="toast" id="toast"></div>
+<div class="lightbox" id="lightbox" onclick="this.classList.remove('on')"><img id="lightbox-img"></div>
+
+<script>
+// config.js에서 키 로드
+if(typeof GEMINI_API_KEY !== 'undefined' && GEMINI_API_KEY && !GEMINI_API_KEY.includes('YOUR_')) {
+  document.getElementById('api-key').value = GEMINI_API_KEY;
+  document.getElementById('api-key').placeholder = '🔑 config.js에서 로드됨';
+}
+
+let students = [], selIdx = null, globalMaxScore = 5;
+
+// CSV parser
+function parseCSV(t) {
+  const rows=[];let i=0,row=[],f='',q=false;
+  while(i<t.length){const c=t[i];
+    if(q){if(c==='"'&&t[i+1]==='"'){f+='"';i+=2}else if(c==='"'){q=false;i++}else{f+=c;i++}}
+    else{if(c==='"'){q=true;i++}else if(c===','){row.push(f);f='';i++}else if(c==='\r'&&t[i+1]==='\n'){row.push(f);rows.push(row);row=[];f='';i+=2}else if(c==='\n'){row.push(f);rows.push(row);row=[];f='';i++}else{f+=c;i++}}}
+  if(f||row.length){row.push(f);rows.push(row);}return rows;
+}
+
+function processFile() {
+  const file = document.getElementById('csv-input').files[0];
+  if(!file){toast('CSV 파일을 먼저 선택해주세요 📂');return;}
+  const reader = new FileReader();
+  reader.onload = e => {
+    const rows = parseCSV(e.target.result);
+    if(rows.length<2){toast('파일을 읽을 수 없어요 😢');return;}
+    students = rows.slice(1).filter(r=>r.length>=9&&r[0]).map(r=>({
+      num:r[0],status:r[1],score:parseInt(r[2])||0,stage:r[3],
+      feedback:r[4],tip:r[5],start:r[6],end:r[7],conv:r[8]
+    }));
+    // 최대 점수 파악
+    globalMaxScore = Math.max(...students.map(s=>s.score), 5);
+    // 셔플 후 알파벳 배정
+    for(let i=students.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[students[i],students[j]]=[students[j],students[i]];}
+    students.forEach((s,i)=>{s.label=String.fromCharCode(65+i);});
+    renderStudents();
+    document.getElementById('students-section').classList.remove('hidden');
+    const maxScore = Math.max(...students.map(s=>s.score));
+    const topStudents = students.filter(s=>s.score===maxScore);
+    document.getElementById('students-title').textContent = `총 ${students.length}명의 감상 기록 ✍️`;
+    const topLabels = topStudents.map(s=>s.label).join(', ');
+    document.getElementById('top-title').innerHTML = `🏆 최고점 <strong>${maxScore}점</strong> — ${topLabels} 학생 (${topStudents.length}명) &nbsp;✨ 프롬프트 추출 중...`;
+    document.getElementById('top-banner').classList.remove('hidden');
+    document.getElementById('top-prompts').innerHTML = topStudents.map(s=>`<div id="top-p-${s.label}" style="background:rgba(0,0,0,.15);border-radius:10px;padding:12px 14px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:4px">${s.label} 학생</div>
+      <div style="font-size:13px;opacity:.7">⏳ 프롬프트 생성 중...</div>
+    </div>`).join('');
+    students.forEach((s,i)=>{if(s.score===maxScore) document.getElementById(`c${i}`).style.borderColor='var(--coral)';});
+    document.getElementById('students-section').scrollIntoView({behavior:'smooth',block:'start'});
+    // 최고점 학생 프롬프트 자동 추출
+    extractTopPrompts(topStudents);
+  };
+  reader.readAsText(file,'UTF-8');
+}
+
+async function extractTopPrompts(topStudents) {
+  const apiKey = document.getElementById('api-key').value.trim();
+  if(!apiKey && !isVercel) {
+    document.getElementById('top-title').innerHTML = document.getElementById('top-title').innerHTML.replace('✨ 프롬프트 추출 중...','');
+    return;
+  }
+  let done = 0;
+  for(const s of topStudents) {
+    const el = document.getElementById(`top-p-${s.label}`);
+    try {
+      const promptEn = await extractPrompt(s, apiKey);
+      const promptKo = await translateToKorean(promptEn, apiKey);
+      el.innerHTML = `<div style="font-size:13px;font-weight:600;margin-bottom:6px">${s.label} 학생의 감상 프롬프트</div>
+        <div style="font-size:14px;line-height:1.7">${promptKo}</div>`;
+    } catch(e) {
+      el.innerHTML = `<div style="font-size:13px;font-weight:600;margin-bottom:4px">${s.label} 학생</div>
+        <div style="font-size:13px;opacity:.7">❌ ${e.message.slice(0,40)}</div>`;
+    }
+    done++;
+    if(done < topStudents.length) await new Promise(r => setTimeout(r, 500));
+  }
+  document.getElementById('top-title').innerHTML = document.getElementById('top-title').innerHTML.replace(' &nbsp;✨ 프롬프트 추출 중...', ' ✅');
+}
+
+const scoreLabel = {
+  0:'⏸️ 미완료', 1:'😴 아쉬웠어요', 2:'🤔 조금 더!', 3:'😊 잘했어요!',
+  4:'🌟 멋져요!', 5:'🏆 훌륭해요!', 6:'💎 대단해요!', 7:'🔥 놀라워요!',
+  8:'✨ 최고예요!', 9:'🌈 완벽해요!', 10:'👑 전설이에요!'
+};
+const isVercel = location.hostname.includes('vercel.app');
+
+function renderStudents() {
+  document.getElementById('students-grid').innerHTML = students.map((s,i)=>`
+    <div class="card" id="c${i}" onclick="selectStudent(${i})">
+      <span class="s-badge s${s.score}">${scoreLabel[s.score] || '⭐ ' + s.score + '점'}</span>
+      <div class="s-num">${s.label} 학생</div>
+      <div class="s-stage">${s.stage}단계 도달 · ${s.status}</div>
+      <div class="s-fb">${s.feedback?s.feedback.slice(0,72)+'…':''}</div>
+      <div class="card-thumb" id="thumb-${i}"></div>
+      <div class="card-status" id="status-${i}"></div>
+    </div>`).join('');
+  document.getElementById('batch-bar').classList.remove('hidden');
+}
+
+function selectStudent(idx) {
+  selIdx = idx;
+  document.querySelectorAll('.card').forEach(c=>c.classList.remove('active'));
+  document.getElementById(`c${idx}`).classList.add('active');
+  const s = students[idx];
+  document.getElementById('result-title').textContent = `${s.label} 학생 · ${scoreLabel[s.score] || s.score + '점'} / ${globalMaxScore}점`;
+  document.getElementById('score-bar').innerHTML = Array.from({length:globalMaxScore},(_,n)=>`<div class="score-pip${n<s.score?' filled':''}"></div>`).join('');
+  renderConv(s.conv);
+  document.getElementById('dl-wrap').innerHTML='';
+  // 이미 생성된 이미지가 있으면 바로 표시
+  if(s._img && s._prompt) {
+    document.getElementById('prompt-txt').textContent = s._promptKo || s._prompt;
+    document.getElementById('prompt-txt').style.cssText='font-style:italic;color:#333';
+    document.getElementById('img-frame').innerHTML=`<img src="data:${s._img.mime};base64,${s._img.data}" alt="생성 이미지" onclick="openLightbox(this.src)" style="cursor:zoom-in">`;
+    document.getElementById('dl-wrap').innerHTML=`<button class="btn btn-dark" style="width:100%;padding:13px" onclick="downloadImage()">💾 이미지 다운로드</button>`;
+  } else {
+    document.getElementById('prompt-txt').textContent='이미지 생성 버튼을 누르면 AI가 프롬프트를 만들어요!';
+    document.getElementById('prompt-txt').style.cssText='color:#999;font-style:normal';
+    document.getElementById('img-frame').innerHTML=`<div class="placeholder"><div class="pi">🎨</div><p>버튼을 누르면<br>이미지가 나타나요</p></div>`;
+  }
+  document.getElementById('result-wrap').classList.remove('hidden');
+  document.getElementById('gen-btn').classList.remove('hidden');
+  document.getElementById('result-wrap').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function openLightbox(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('on');
+}
+
+function renderConv(conv) {
+  const panel = document.getElementById('conv-panel');
+  panel.innerHTML = conv.split('\n').filter(l=>l.trim()).map(l=>{
+    if(l.startsWith('[학생]')) return `<div class="bubble stu">${l.replace('[학생] ','')}</div>`;
+    if(l.startsWith('[유니콘]')) return `<div class="bubble bot">🦄 ${l.replace('[유니콘] ','')}</div>`;
+    return '';
+  }).join('');
+}
+
+let generating = false;
+async function generateForSelected() {
+  if(generating){toast('이미 생성 중이에요!');return;}
+  if(selIdx===null){toast('학생을 먼저 골라주세요!');return;}
+  const apiKey = document.getElementById('api-key').value.trim();
+  if(!apiKey && !isVercel){toast('API Key가 없어요 🔑');return;}
+  generating = true;
+  lockButtons(true);
+  const s = students[selIdx];
+  document.getElementById('img-frame').innerHTML=`<div class="placeholder"><div class="spin"></div><p>AI가 열심히 그리고 있어요!</p></div>`;
+  document.getElementById('prompt-txt').textContent='프롬프트 생성 중...';
+  document.getElementById('dl-wrap').innerHTML='';
+  try {
+    const promptEn = await extractPrompt(s, apiKey);
+    document.getElementById('prompt-txt').textContent = '한글 번역 중...';
+    const promptKo = await translateToKorean(promptEn, apiKey);
+    document.getElementById('prompt-txt').textContent = promptKo;
+    document.getElementById('prompt-txt').style.cssText='font-style:italic;color:#333';
+    const img = await generateImage(promptEn, apiKey);
+    // 캐시 저장
+    s._prompt = promptEn;
+    s._promptKo = promptKo;
+    s._img = img;
+    document.getElementById('img-frame').innerHTML=`<img src="data:${img.mime};base64,${img.data}" alt="생성 이미지" onclick="openLightbox(this.src)" style="cursor:zoom-in">`;
+    document.getElementById('dl-wrap').innerHTML=`<button class="btn btn-dark" style="width:100%;padding:13px" onclick="downloadImage()">💾 이미지 다운로드</button>`;
+    // 카드 썸네일도 업데이트
+    document.getElementById(`thumb-${selIdx}`).innerHTML=`<img src="data:${img.mime};base64,${img.data}">`;
+    document.getElementById(`status-${selIdx}`).className='card-status done';
+    document.getElementById(`status-${selIdx}`).textContent='✅ 완료';
+  } catch(e) {
+    console.error(e);
+    document.getElementById('img-frame').innerHTML=`<div class="placeholder"><div class="pi">😢</div><p style="color:#c00">${e.message}</p></div>`;
+    toast('오류: '+e.message);
+  }
+  generating = false;
+  lockButtons(false);
+}
+function lockButtons(lock){
+  const gb=document.getElementById('gen-btn');
+  const bb=document.getElementById('batch-btn');
+  const ib=document.querySelector('.gen-btn-wrap .btn');
+  if(gb){gb.disabled=lock;gb.textContent=lock?'✨ 생성 중...':'✨ 이미지 만들기';}
+  if(bb&&!batchRunning){bb.disabled=lock;}
+  if(ib){ib.disabled=lock;ib.textContent=lock?'✨ 생성 중...':'✨ 이 학생 이미지 만들기';}
+}
+
+async function extractPrompt(s, apiKey) {
+  if(isVercel) {
+    const res = await fetch('/api/prompt',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({studentNum:s.num,score:s.score,conv:s.conv})});
+    if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e?.error||`서버 오류 ${res.status}`);}
+    return (await res.json()).prompt;
+  }
+  const wordCounts = {1:15, 2:30, 3:60, 4:90, 5:120};
+  const wc = wordCounts[s.score] || 60;
+  const sys = `You convert a student's art chat into an English image prompt.
+
+- Only use what the student said. Add nothing else.
+- The student spoke little? Then the prompt is short and vague.
+- The student described a lot, imagined stories, expressed emotions? Then the prompt is rich and detailed.
+- Do NOT reference the original artwork or artist. Only the student's own words matter.
+- Output: English image prompt only, ~${wc} words. No explanation.`;
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      systemInstruction:{parts:[{text:sys}]},
+      contents:[{role:'user',parts:[{text:`Student #${s.num}, Score: ${s.score}/5\n\nConversation:\n${s.conv}`}]}],
+      generationConfig:{temperature:0.7,maxOutputTokens:1024,thinkingConfig:{thinkingBudget:0}}
+    })
+  });
+  if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e?.error?.message||`텍스트 API 오류 ${res.status}`);}
+  const d=await res.json();
+  return d.candidates?.[0]?.content?.parts?.[0]?.text?.trim()||'프롬프트 생성 실패';
+}
+
+async function translateToKorean(text, apiKey) {
+  if(isVercel) {
+    // Vercel에서는 번역 생략, 원문 표시
+    return text;
+  }
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        systemInstruction:{parts:[{text:'영어 이미지 프롬프트를 자연스러운 한국어로 번역해주세요. 번역만 출력.'}]},
+        contents:[{role:'user',parts:[{text}]}],
+        generationConfig:{temperature:0.3,maxOutputTokens:500,thinkingConfig:{thinkingBudget:0}}
+      })
+    });
+    if(!res.ok) return text;
+    const d = await res.json();
+    return d.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || text;
+  } catch { return text; }
+}
+
+async function generateImage(prompt, apiKey) {
+  if(isVercel) {
+    const res = await fetch('/api/image',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt})});
+    if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e?.error||`서버 오류 ${res.status}`);}
+    return await res.json();
+  }
+  const fullPrompt = prompt + ', expressive brushwork painting, artistic, emotional';
+  const controller = new AbortController();
+  const timeout = setTimeout(()=>controller.abort(), 60000);
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${apiKey}`,{
+      method:'POST',headers:{'Content-Type':'application/json'},signal:controller.signal,
+      body:JSON.stringify({
+        contents:[{role:'user',parts:[{text:fullPrompt}]}],
+        generationConfig:{responseModalities:['IMAGE','TEXT']}
+      })
+    });
+    clearTimeout(timeout);
+    if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e?.error?.message||`이미지 API 오류 ${res.status}`);}
+    const d=await res.json();
+    for(const p of (d.candidates?.[0]?.content?.parts||[])){if(p.inlineData)return{mime:p.inlineData.mimeType,data:p.inlineData.data};}
+    throw new Error('이미지 데이터를 받지 못했어요');
+  } catch(e) {
+    clearTimeout(timeout);
+    if(e.name==='AbortError') throw new Error('60초 타임아웃 — 다시 시도해주세요');
+    throw e;
+  }
+}
+
+// drag & drop
+const dz=document.getElementById('drop-zone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+dz.addEventListener('drop',e=>{
+  e.preventDefault();dz.classList.remove('over');
+  const f=e.dataTransfer.files[0];
+  if(f){const dt=new DataTransfer();dt.items.add(f);document.getElementById('csv-input').files=dt.files;showFileName(f.name);}
+});
+document.getElementById('csv-input').addEventListener('change',e=>{if(e.target.files[0])showFileName(e.target.files[0].name);});
+function showFileName(n){const el=document.getElementById('file-name');el.textContent='📄 '+n;el.classList.remove('hidden');}
+
+function resetApp(){
+  students=[];selIdx=null;
+  document.getElementById('csv-input').value='';
+  document.getElementById('file-name').classList.add('hidden');
+  document.getElementById('students-section').classList.add('hidden');
+  document.getElementById('result-wrap').classList.add('hidden');
+  document.getElementById('gen-btn').classList.add('hidden');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2800);}
+function downloadImage(){
+  const img=document.querySelector('#img-frame img');
+  if(!img)return;
+  const s=students[selIdx];
+  const a=document.createElement('a');
+  a.href=img.src;
+  a.download=`student_${s.label}_score${s.score}.png`;
+  a.click();
+}
+
+let batchRunning = false;
+async function generateAll() {
+  if(generating){toast('이미 생성 중이에요!');return;}
+  const apiKey = document.getElementById('api-key').value.trim();
+  if(!apiKey && !isVercel){toast('API Key가 없어요 🔑');return;}
+  if(batchRunning){batchRunning=false;return;}
+  batchRunning = true;
+  generating = true;
+  lockButtons(true);
+  const btn = document.getElementById('batch-btn');
+  btn.textContent = '⏹ 생성 중지';
+  document.getElementById('progress-wrap').classList.remove('hidden');
+  let done = 0;
+  const total = students.length;
+
+  for(let i=0; i<total; i++) {
+    if(!batchRunning) break;
+    const s = students[i];
+    const st = document.getElementById(`status-${i}`);
+    st.className='card-status wait'; st.textContent='⏳ 생성 중...';
+    try {
+      const prompt = await extractPrompt(s, apiKey);
+      const img = await generateImage(prompt, apiKey);
+      document.getElementById(`thumb-${i}`).innerHTML = `<img src="data:${img.mime};base64,${img.data}">`;
+      students[i]._img = img;
+      students[i]._prompt = prompt;
+      st.className='card-status done'; st.textContent='✅ 완료';
+    } catch(e) {
+      st.className='card-status fail'; st.textContent='❌ '+e.message.slice(0,30);
+    }
+    done++;
+    document.getElementById('progress-bar').style.width = (done/total*100)+'%';
+    document.getElementById('progress-label').textContent = `${done} / ${total} 완료`;
+    // 5개마다 1초 대기 (rate limit 방지)
+    if(done % 5 === 0 && done < total && batchRunning) {
+      await new Promise(r => setTimeout(r, 1000));
+    }
+  }
+  batchRunning = false;
+  generating = false;
+  lockButtons(false);
+  btn.textContent = '🚀 전체 이미지 생성 (5개씩)';
+  const hasImages = students.some(s=>s._img);
+  if(hasImages) document.getElementById('dl-all-btn').classList.remove('hidden');
+  if(done >= total) toast('전체 생성 완료! 🎉');
+}
+
+async function downloadAllImages() {
+  const zip = new JSZip();
+  let count = 0;
+  students.forEach(s => {
+    if(s._img) {
+      const ext = s._img.mime.includes('png') ? 'png' : 'jpg';
+      zip.file(`${s.label}_score${s.score}.${ext}`, s._img.data, {base64:true});
+      count++;
+    }
+  });
+  if(!count){toast('다운로드할 이미지가 없어요');return;}
+  toast(`${count}장 ZIP 압축 중...`);
+  const blob = await zip.generateAsync({type:'blob'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `art_images_${count}pics.zip`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast(`${count}장 다운로드 완료! 📦`);
+}
+</script>
+</body>
+</html>
