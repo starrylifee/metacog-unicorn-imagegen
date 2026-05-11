@@ -520,7 +520,7 @@ let galStudentList = [];
 async function openGalModal() {
   if (!allResults.length) { toast('결과가 없어요'); return; }
 
-  // Group ALL results by studentNum (실명) across all boards
+  // 전체 결과를 studentNum 기준으로 묶기
   const map = {};
   allResults.forEach(r => {
     const key = String(r.studentNum || r.label || '?');
@@ -535,40 +535,50 @@ async function openGalModal() {
   document.getElementById('gal-body').innerHTML = '<div style="color:#888;font-size:13px;text-align:center;padding:20px">불러오는 중...</div>';
   document.getElementById('gal-bg').classList.add('on');
 
-  // Load existing codes keyed by studentNum
+  // 기존 코드 조회
   const existingCodes = {};
   try {
     const snap = await db.collection('users').doc(currentUser.uid).collection('studentRooms').get();
-    snap.docs.forEach(d => { existingCodes[d.id] = d.data().code; }); // doc id = studentNum
+    snap.docs.forEach(d => { existingCodes[d.id] = d.data().code; });
   } catch(e) {}
 
-  renderGalBody(existingCodes);
+  // 코드 있는 학생은 백그라운드에서 그림 목록 자동 갱신
+  galStudentList.forEach(s => {
+    const code = existingCodes[s.studentNum];
+    if (code) {
+      s._code = code;
+      db.collection('rooms').doc(code).update({
+        paintings: buildPaintings(s),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).catch(() => {});
+    } else {
+      delete s._code;
+    }
+  });
+
+  renderGalBody();
 }
 
-function renderGalBody(existingCodes) {
+function renderGalBody() {
   const body = document.getElementById('gal-body');
   if (!galStudentList.length) {
     body.innerHTML = '<div style="color:#888;font-size:13px;text-align:center;padding:20px">학생 없음</div>';
     return;
   }
   body.innerHTML = galStudentList.map((s, i) => {
-    const code = existingCodes[s.studentNum];
-    if (code) s._code = code; else delete s._code;
+    const code = s._code;
     const galUrl = code ? `${location.origin}/gallery.html?code=${code}` : '';
     const sessions = [...new Set(s.paintings.map(r => r.csvTitle).filter(Boolean))];
     return `<div class="gal-row">
       <div style="flex:1;min-width:0">
-        <div style="font-weight:600;font-size:14px">${escHtml(s.studentNum)} · ${escHtml(s.label)} · ${s.paintings.length}개 작품</div>
+        <div style="font-weight:600;font-size:14px">${escHtml(s.studentNum)}번 · ${s.paintings.length}개 작품</div>
         <div style="font-size:11px;color:#aaa;margin-top:1px">${sessions.map(escHtml).join(' · ')}</div>
-        ${code
-          ? `<div style="margin-top:5px"><span class="gal-code-chip">${escHtml(code)}</span></div>
-             <div class="gal-url">${escHtml(galUrl)}</div>`
-          : ''}
+        ${code ? `<div style="margin-top:5px"><span class="gal-code-chip">${escHtml(code)}</span></div>
+                  <div class="gal-url">${escHtml(galUrl)}</div>` : ''}
       </div>
-      <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
+      <div style="flex-shrink:0">
         ${code
-          ? `<button class="btn btn-out btn-sm" onclick="copyGalLink(${i},this)">복사</button>
-             <button class="btn btn-out btn-sm" onclick="updateGalCode(${i},this)">업데이트</button>`
+          ? `<button class="btn btn-out btn-sm" onclick="copyGalLink(${i},this)">링크 복사</button>`
           : `<button class="btn btn-dark btn-sm" onclick="genGalCode(${i},this)">코드 생성</button>`}
       </div>
     </div>`;
@@ -577,7 +587,6 @@ function renderGalBody(existingCodes) {
 
 function buildPaintings(s) {
   return s.paintings.map(r => ({
-    label: r.label || '',
     studentNum: r.studentNum || '',
     score: r.score || 0,
     imageUrl: r.imageUrl || '',
@@ -596,39 +605,20 @@ async function genGalCode(idx, btn) {
   try {
     await db.collection('rooms').doc(code).set({
       studentNum: s.studentNum,
-      studentName: s.label,
       paintings: buildPaintings(s),
       teacherUid: currentUser.uid,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     await db.collection('users').doc(currentUser.uid).collection('studentRooms').doc(s.studentNum).set({
       code,
-      studentName: s.label,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    toast(`✓ 코드 생성: ${code}`);
-    await openGalModal();
+    s._code = code;
+    toast(`✓ ${s.studentNum}번 코드 생성: ${code}`);
+    renderGalBody();
   } catch(e) {
     toast('오류: ' + e.message);
     btn.disabled = false; btn.textContent = '코드 생성';
-  }
-}
-
-async function updateGalCode(idx, btn) {
-  const s = galStudentList[idx];
-  if (!s || !s._code) return;
-  btn.disabled = true; btn.textContent = '업데이트 중...';
-  try {
-    await db.collection('rooms').doc(s._code).update({
-      paintings: buildPaintings(s),
-      studentName: s.label,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    toast(`✓ 갤러리 업데이트 완료 (${s.paintings.length}개)`);
-    btn.disabled = false; btn.textContent = '업데이트';
-  } catch(e) {
-    toast('오류: ' + e.message);
-    btn.disabled = false; btn.textContent = '업데이트';
   }
 }
 
@@ -638,9 +628,8 @@ async function copyGalLink(idx, btn) {
   const url = `${location.origin}/gallery.html?code=${s._code}`;
   try {
     await navigator.clipboard.writeText(url);
-    const orig = btn.textContent;
     btn.textContent = '✓ 복사됨';
-    setTimeout(() => { btn.textContent = orig; }, 1500);
+    setTimeout(() => { btn.textContent = '링크 복사'; }, 1500);
   } catch(e) {
     toast('복사 실패 — 수동으로 복사하세요');
   }
