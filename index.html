@@ -104,6 +104,12 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.9);backdrop-f
 .card-status.fail{color:#c33}
 .card-status.wait{color:#888}
 
+/* REAL NAME TOGGLE */
+.real-toggle{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.07);border:1px solid rgba(0,0,0,.12);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;color:#666;transition:all .15s;font-family:'Inter',sans-serif;letter-spacing:.3px}
+.real-toggle:hover{background:rgba(0,0,0,.14)}
+.real-toggle.on{background:var(--black);color:var(--lime);border-color:var(--black)}
+.s-real{font-size:11px;color:#888;margin-top:1px;font-family:'JetBrains Mono',monospace;letter-spacing:.3px}
+
 /* TOAST */
 .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--black);color:var(--white);padding:10px 22px;border-radius:50px;font-size:14px;z-index:999;opacity:0;transition:all .25s;pointer-events:none}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -303,8 +309,10 @@ const isVercel = location.hostname.includes('vercel.app');
 function renderStudents() {
   document.getElementById('students-grid').innerHTML = students.map((s,i)=>`
     <div class="card" id="c${i}" onclick="selectStudent(${i})">
+      <button class="real-toggle" id="rt-${i}" onclick="toggleReal(event,${i})">실명</button>
       <span class="s-badge s${s.score}">${scoreLabel[s.score] || '⭐ ' + s.score + '점'}</span>
-      <div class="s-num">${s.label} 학생</div>
+      <div class="s-num" id="snum-${i}">${s.label} 학생</div>
+      <div class="s-real hidden" id="real-${i}">${s.num}</div>
       <div class="s-stage">${s.stage}단계 도달 · ${s.status}</div>
       <div class="s-fb">${s.feedback?s.feedback.slice(0,72)+'…':''}</div>
       <div class="card-thumb" id="thumb-${i}"></div>
@@ -313,12 +321,36 @@ function renderStudents() {
   document.getElementById('batch-bar').classList.remove('hidden');
 }
 
+function toggleReal(e, i) {
+  e.stopPropagation();
+  const s = students[i];
+  s.showReal = !s.showReal;
+  const realEl = document.getElementById(`real-${i}`);
+  const toggleEl = document.getElementById(`rt-${i}`);
+  if(s.showReal) {
+    realEl.classList.remove('hidden');
+    toggleEl.classList.add('on');
+    toggleEl.textContent = '실명 ON';
+  } else {
+    realEl.classList.add('hidden');
+    toggleEl.classList.remove('on');
+    toggleEl.textContent = '실명';
+  }
+  if(selIdx === i) updateResultTitle(i);
+}
+
+function updateResultTitle(i) {
+  const s = students[i];
+  const realTag = s.showReal ? ` <span style="font-size:16px;font-weight:400;opacity:.6;font-family:'JetBrains Mono',monospace">(${s.num})</span>` : '';
+  document.getElementById('result-title').innerHTML = `${s.label} 학생${realTag} · ${scoreLabel[s.score] || s.score + '점'} / ${globalMaxScore}점`;
+}
+
 function selectStudent(idx) {
   selIdx = idx;
   document.querySelectorAll('.card').forEach(c=>c.classList.remove('active'));
   document.getElementById(`c${idx}`).classList.add('active');
   const s = students[idx];
-  document.getElementById('result-title').textContent = `${s.label} 학생 · ${scoreLabel[s.score] || s.score + '점'} / ${globalMaxScore}점`;
+  updateResultTitle(idx);
   document.getElementById('score-bar').innerHTML = Array.from({length:globalMaxScore},(_,n)=>`<div class="score-pip${n<s.score?' filled':''}"></div>`).join('');
   renderConv(s.conv);
   document.getElementById('dl-wrap').innerHTML='';
