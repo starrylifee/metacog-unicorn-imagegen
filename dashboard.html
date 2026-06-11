@@ -52,6 +52,36 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.92);backdrop-
 /* BOARDS */
 .boards{max-width:1400px;margin:0 auto;padding:0 var(--r32) 80px;display:flex;flex-direction:column;gap:40px}
 
+/* ANALYTICS */
+.analytics{max-width:1400px;margin:0 auto 28px;padding:0 var(--r32)}
+.analytics-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:14px;flex-wrap:wrap}
+.analytics-title{font-size:18px;font-weight:650;letter-spacing:-.3px}
+.analytics-sub{font-size:12px;color:#888;margin-top:2px}
+.analytics-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:14px}
+.analytics-panel{background:var(--white);border:1px solid var(--line);border-radius:14px;padding:16px}
+.analytics-panel h3{font-size:13px;font-weight:700;margin-bottom:12px;letter-spacing:-.1px}
+.analytics-empty{background:var(--white);border:1.5px dashed var(--line);border-radius:14px;padding:24px;color:#888;font-size:13px;line-height:1.7}
+.metric-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.metric{background:var(--soft);border-radius:10px;padding:11px 12px}
+.metric-label{font-size:11px;color:#888;margin-bottom:2px}
+.metric-value{font-size:22px;font-weight:700;letter-spacing:-.4px}
+.session-chart,.student-chart{display:flex;flex-direction:column;gap:9px;max-height:360px;overflow-y:auto;padding-right:2px}
+.session-chart::-webkit-scrollbar,.student-chart::-webkit-scrollbar{width:3px}.session-chart::-webkit-scrollbar-thumb,.student-chart::-webkit-scrollbar-thumb{background:rgba(0,0,0,.12);border-radius:3px}
+.chart-row{display:grid;grid-template-columns:minmax(110px,1fr) minmax(150px,1.6fr) auto;gap:10px;align-items:center;font-size:12px}
+.chart-name{font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chart-meta{font-size:11px;color:#999;margin-top:1px}
+.bar-track{height:10px;background:var(--soft);border-radius:999px;overflow:hidden}
+.bar-fill{height:100%;background:var(--black);border-radius:999px;min-width:2px}
+.chart-value{font-family:'JetBrains Mono',monospace;font-size:11px;color:#555;white-space:nowrap}
+.stage-pips{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:5px}
+.stage-pip{height:6px;border-radius:999px;background:#e7e7e4}
+.stage-pip.on{background:var(--lime);box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+.student-row{display:grid;grid-template-columns:minmax(58px,.7fr) 1fr auto;gap:10px;align-items:center;font-size:12px;border-bottom:1px solid var(--line);padding-bottom:8px}
+.student-row:last-child{border-bottom:none}
+.student-name{font-weight:700}
+.student-sub{font-size:11px;color:#999;margin-top:1px}
+.reach-text{font-family:'JetBrains Mono',monospace;font-size:11px;color:#555;white-space:nowrap}
+
 /* BOARD */
 .board-header{display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:14px;border-bottom:2px solid var(--black)}
 .board-icon{font-size:18px}
@@ -132,7 +162,7 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.92);backdrop-
 .gal-code-chip{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;letter-spacing:4px;background:var(--black);color:var(--lime);border-radius:8px;padding:4px 12px;display:inline-block}
 .gal-url{font-size:11px;color:#aaa;font-family:'JetBrains Mono',monospace;word-break:break-all;margin-top:3px}
 
-@media(max-width:700px){nav{padding:0 16px}.hero,.boards{padding-left:16px;padding-right:16px}.wall,.skeleton-wall{columns:2 140px}.modal-body{flex-direction:column}.modal-img-wrap{width:100%;max-width:100%;height:220px}.modal-img-wrap img{height:220px;width:auto;margin:auto}}
+@media(max-width:700px){nav{padding:0 16px}.hero,.boards,.analytics{padding-left:16px;padding-right:16px}.analytics-grid,.metric-row{grid-template-columns:1fr}.chart-row{grid-template-columns:1fr}.wall,.skeleton-wall{columns:2 140px}.modal-body{flex-direction:column}.modal-img-wrap{width:100%;max-width:100%;height:220px}.modal-img-wrap img{height:220px;width:auto;margin:auto}}
 @media(max-width:400px){.wall,.skeleton-wall{columns:1}}
 </style>
 </head>
@@ -174,6 +204,22 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.92);backdrop-
       <button class="chip" id="gal-btn" onclick="openGalModal()">🖼 갤러리 코드</button>
     </div>
   </div>
+
+  <section class="analytics" id="analytics-section">
+    <div class="analytics-head">
+      <div>
+        <div class="analytics-title">펠드만 단계 누적 분석</div>
+        <div class="analytics-sub" id="analytics-sub">CSV 또는 저장 결과를 기준으로 학생별·학급 평균 도달 단계를 봅니다.</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="chip" id="analytics-import-btn" onclick="document.getElementById('analytics-csv-input').click()">CSV 분석 누적</button>
+        <input type="file" id="analytics-csv-input" accept=".csv" style="display:none" onchange="importAnalyticsCsv(this.files[0]);this.value=''">
+      </div>
+    </div>
+    <div class="analytics-grid" id="analytics-body">
+      <div class="analytics-empty">분석 데이터를 불러오는 중...</div>
+    </div>
+  </section>
 
   <div class="boards" id="boards-container">
     <div class="skeleton-wrap" id="skeleton">
@@ -270,12 +316,14 @@ const storage = firebase.storage();
 
 let currentUser = null;
 let allResults = [];
+let allAnalytics = [];
 let currentSort = 'date';
 let showReal = false;
 let currentDocId = null;
 let currentBoard = null;
 let sortedGroupsCache = [];
 let enrichingCsv = false;
+let importingAnalytics = false;
 let downloadingBoardZip = false;
 
 const scoreLabel = {
@@ -326,6 +374,42 @@ function currentBoardItems() {
   return allResults.filter(r => (r.csvTitle || '미분류') === currentBoard);
 }
 
+function csvTitleFromFile(file) {
+  return (file?.name || '미분류').replace(/\.csv$/i, '');
+}
+
+function analyticsDocId(csvTitle, studentNum) {
+  return safeFileName(`${csvTitle}_${studentKey(studentNum) || 'unknown'}`)
+    .replace(/[\/\\#?\[\]]/g, '_')
+    .slice(0, 180);
+}
+
+function parseStudentRowsFromCsv(text) {
+  const rows = parseCSV(text);
+  if (rows.length < 2) throw new Error('CSV를 읽을 수 없어요');
+
+  return rows.slice(1).filter(r => r.length >= 9 && r[0]).map(r => {
+    const score = parseInt(r[2], 10) || 0;
+    const stage = r[3] || '';
+    const conv = r[8] || '';
+    const stageLevel = normalizeStage(stage, score);
+    return {
+      studentNum: r[0],
+      status: r[1] || '',
+      score,
+      stage,
+      stageLevel,
+      feedback: r[4] || '',
+      tip: r[5] || '',
+      start: r[6] || '',
+      end: r[7] || '',
+      conv,
+      evidenceQuote: extractLocalHighlight(conv),
+      stageNote: stageNoteFor({ stageLevel, stage, score })
+    };
+  });
+}
+
 auth.onAuthStateChanged(user => {
   currentUser = user;
   const authBtn = document.getElementById('auth-btn');
@@ -344,6 +428,7 @@ auth.onAuthStateChanged(user => {
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('main-content').style.display = 'none';
     allResults = [];
+    allAnalytics = [];
   }
 });
 
@@ -354,9 +439,14 @@ function handleAuth() {
 
 async function loadResults() {
   try {
-    const snap = await db.collection('users').doc(currentUser.uid).collection('results')
-      .orderBy('createdAt', 'desc').get();
-    allResults = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const userRef = db.collection('users').doc(currentUser.uid);
+    const [resultSnap, analyticsSnap] = await Promise.all([
+      userRef.collection('results').orderBy('createdAt', 'desc').get(),
+      userRef.collection('analytics').get().catch(() => ({ docs: [] }))
+    ]);
+    allResults = resultSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    allAnalytics = analyticsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderAnalytics();
     renderBoards();
   } catch(e) {
     console.error(e);
@@ -437,6 +527,148 @@ function renderBoards() {
   document.getElementById('hero-sub').textContent = `${items.length}개 이미지 · ${latestDate}`;
 
   container.innerHTML = `<div class="board"><div class="wall">${sorted.map(r => renderCard(r)).join('')}</div></div>`;
+}
+
+function renderAnalytics() {
+  const body = document.getElementById('analytics-body');
+  if (!body) return;
+
+  const records = collectAnalyticsRecords();
+  if (!records.length) {
+    document.getElementById('analytics-sub').textContent = '아직 분석 데이터가 없어요. CSV를 누적하면 학생별·학급 평균 그래프가 생깁니다.';
+    body.className = 'analytics-grid';
+    body.innerHTML = `<div class="analytics-empty" style="grid-column:1/-1">
+      CSV 분석 누적을 눌러 챗봇 CSV를 올리면, 이미지가 없어도 학생별 단계와 학급 평균 단계가 저장됩니다.
+    </div>`;
+    return;
+  }
+
+  const sessions = groupRecords(records, r => r.csvTitle || '미분류');
+  const students = groupRecords(records, r => studentKey(r.studentNum || r.label || '?'));
+  const overallAvg = avg(records.map(r => r.stageLevel));
+  const stage4Rate = percent(records.filter(r => r.stageLevel >= 4).length, records.length);
+
+  document.getElementById('analytics-sub').textContent =
+    `${records.length}개 기록 · ${sessions.size}회차 · ${students.size}명 누적`;
+
+  body.className = 'analytics-grid';
+  body.innerHTML = `
+    <div class="analytics-panel">
+      <div class="metric-row">
+        <div class="metric"><div class="metric-label">누적 기록</div><div class="metric-value">${records.length}</div></div>
+        <div class="metric"><div class="metric-label">학급 평균</div><div class="metric-value">${overallAvg.toFixed(2)}</div></div>
+        <div class="metric"><div class="metric-label">4단계 도달</div><div class="metric-value">${stage4Rate}%</div></div>
+      </div>
+      <h3>회차별 학급 평균 도달 단계</h3>
+      <div class="session-chart">${renderSessionRows(sessions)}</div>
+    </div>
+    <div class="analytics-panel">
+      <h3>학생별 누적 도달 단계</h3>
+      <div class="student-chart">${renderStudentRows(students)}</div>
+    </div>`;
+}
+
+function collectAnalyticsRecords() {
+  const map = new Map();
+
+  allAnalytics.forEach(a => {
+    const studentNum = studentKey(a.studentNum || a.label);
+    if (!studentNum) return;
+    const csvTitle = a.csvTitle || '미분류';
+    const stageLevel = Number(a.stageLevel) || normalizeStage(a.stage, a.score);
+    map.set(`${csvTitle}::${studentNum}`, { ...a, csvTitle, studentNum, stageLevel });
+  });
+
+  allResults.forEach(r => {
+    const studentNum = studentKey(r.studentNum || r.label);
+    if (!studentNum) return;
+    if (!r.stageLevel && !r.stage && !r.conv) return;
+    const csvTitle = r.csvTitle || '미분류';
+    const key = `${csvTitle}::${studentNum}`;
+    const existing = map.get(key) || {};
+    const stageLevel = Number(existing.stageLevel) || Number(r.stageLevel) || normalizeStage(r.stage, r.score);
+    map.set(key, { ...r, ...existing, csvTitle, studentNum, stageLevel });
+  });
+
+  return [...map.values()].filter(r => Number.isFinite(Number(r.stageLevel)) && Number(r.stageLevel) >= 1);
+}
+
+function groupRecords(records, keyFn) {
+  const map = new Map();
+  records.forEach(r => {
+    const key = keyFn(r);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(r);
+  });
+  return map;
+}
+
+function renderSessionRows(sessionMap) {
+  const rows = [...sessionMap.entries()].sort((a, b) =>
+    String(a[0]).localeCompare(String(b[0]), 'ko', { numeric: true })
+  );
+
+  return rows.map(([title, records]) => {
+    const average = avg(records.map(r => r.stageLevel));
+    const stage4 = percent(records.filter(r => r.stageLevel >= 4).length, records.length);
+    return `<div class="chart-row">
+      <div>
+        <div class="chart-name">${escHtml(title)}</div>
+        <div class="chart-meta">${records.length}명 · 4단계 ${stage4}%</div>
+      </div>
+      <div>
+        <div class="bar-track"><div class="bar-fill" style="width:${Math.max(3, average / 4 * 100)}%"></div></div>
+        ${renderStagePips(average)}
+      </div>
+      <div class="chart-value">${average.toFixed(2)} / 4</div>
+    </div>`;
+  }).join('');
+}
+
+function renderStudentRows(studentMap) {
+  const rows = [...studentMap.entries()].sort((a, b) =>
+    String(a[0]).localeCompare(String(b[0]), 'ko', { numeric: true })
+  );
+
+  return rows.map(([studentNum, records]) => {
+    const ordered = [...records].sort((a, b) =>
+      String(a.csvTitle || '').localeCompare(String(b.csvTitle || ''), 'ko', { numeric: true })
+    );
+    const latest = ordered[ordered.length - 1];
+    const average = avg(records.map(r => r.stageLevel));
+    return `<div class="student-row">
+      <div>
+        <div class="student-name">${escHtml(studentNum)}번</div>
+        <div class="student-sub">${records.length}회 · 최근 ${escHtml(latest?.csvTitle || '미분류')}</div>
+      </div>
+      <div>${renderReachPips(records)}</div>
+      <div class="reach-text">${average.toFixed(1)} / 4</div>
+    </div>`;
+  }).join('');
+}
+
+function renderStagePips(value) {
+  return `<div class="stage-pips">${[1, 2, 3, 4].map(n =>
+    `<div class="stage-pip${value >= n ? ' on' : ''}" title="${n}단계"></div>`
+  ).join('')}</div>`;
+}
+
+function renderReachPips(records) {
+  return `<div class="stage-pips">${[1, 2, 3, 4].map(n => {
+    const rate = percent(records.filter(r => r.stageLevel >= n).length, records.length);
+    return `<div class="stage-pip${rate > 0 ? ' on' : ''}" title="${n}단계 도달 ${rate}%" style="opacity:${Math.max(.22, rate / 100)}"></div>`;
+  }).join('')}</div>`;
+}
+
+function avg(values) {
+  const nums = values.map(Number).filter(Number.isFinite);
+  if (!nums.length) return 0;
+  return nums.reduce((a, b) => a + b, 0) / nums.length;
+}
+
+function percent(part, total) {
+  if (!total) return 0;
+  return Math.round(part / total * 100);
 }
 
 function renderCard(r) {
@@ -713,6 +945,108 @@ function renderConversationHtml(conv, highlight) {
   return html || '<div style="font-size:12px;color:#999">저장된 대화가 없어요.</div>';
 }
 
+async function importAnalyticsCsv(file) {
+  if (!file || importingAnalytics) return;
+  if (!currentUser) { toast('로그인이 필요해요'); return; }
+
+  importingAnalytics = true;
+  const btn = document.getElementById('analytics-import-btn');
+  const oldText = btn.textContent;
+  btn.textContent = '누적 중...';
+  btn.disabled = true;
+
+  try {
+    const csvTitle = csvTitleFromFile(file);
+    const rows = parseStudentRowsFromCsv(await file.text());
+    if (!rows.length) throw new Error('누적할 학생 기록이 없어요');
+
+    const ok = confirm(`"${csvTitle}" CSV의 ${rows.length}명 기록을 누적 분석에 저장할까요?\n같은 회차/학생번호의 기존 이미지 결과가 있으면 대화도 함께 보강합니다.`);
+    if (!ok) return;
+
+    await upsertAnalyticsRecords(rows, csvTitle, file.name);
+    const { updated, affectedStudents } = await mergeCsvRowsIntoResults(rows, csvTitle);
+    const roomCount = await refreshExistingRooms([...affectedStudents]);
+    renderAnalytics();
+    renderBoards();
+    toast(`분석 누적 완료: ${rows.length}명${updated ? ` · 이미지 결과 ${updated}개 보강` : ''}${roomCount ? ` · 갤러리 방 ${roomCount}개 갱신` : ''}`);
+  } catch (e) {
+    console.error(e);
+    toast('CSV 분석 누적 실패: ' + e.message);
+  } finally {
+    importingAnalytics = false;
+    btn.textContent = oldText;
+    btn.disabled = false;
+  }
+}
+
+async function upsertAnalyticsRecords(rows, csvTitle, sourceFile) {
+  const collection = db.collection('users').doc(currentUser.uid).collection('analytics');
+  for (let i = 0; i < rows.length; i += 450) {
+    const batch = db.batch();
+    rows.slice(i, i + 450).forEach(row => {
+      const docRef = collection.doc(analyticsDocId(csvTitle, row.studentNum));
+      batch.set(docRef, {
+        ...row,
+        csvTitle,
+        sourceFile: sourceFile || '',
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    });
+    await batch.commit();
+  }
+
+  rows.forEach(row => {
+    const id = analyticsDocId(csvTitle, row.studentNum);
+    const next = { id, ...row, csvTitle, sourceFile: sourceFile || '' };
+    const idx = allAnalytics.findIndex(a => a.id === id);
+    if (idx >= 0) allAnalytics[idx] = { ...allAnalytics[idx], ...next };
+    else allAnalytics.push(next);
+  });
+}
+
+async function mergeCsvRowsIntoResults(rows, csvTitle) {
+  const byStudent = new Map(rows.map(row => [studentKey(row.studentNum), row]));
+  const targets = allResults.filter(r =>
+    (r.csvTitle || '미분류') === csvTitle &&
+    byStudent.has(studentKey(r.studentNum))
+  );
+  const affectedStudents = new Set();
+  let updated = 0;
+
+  const collection = db.collection('users').doc(currentUser.uid).collection('results');
+  for (let i = 0; i < targets.length; i += 450) {
+    const batch = db.batch();
+    targets.slice(i, i + 450).forEach(r => {
+      const row = byStudent.get(studentKey(r.studentNum));
+      const patch = analyticsPatchFromRow(row);
+      batch.update(collection.doc(r.id), patch);
+      Object.assign(r, patch);
+      affectedStudents.add(studentKey(r.studentNum));
+      updated++;
+    });
+    await batch.commit();
+  }
+
+  return { updated, affectedStudents };
+}
+
+function analyticsPatchFromRow(row) {
+  return {
+    conv: row.conv,
+    stage: row.stage,
+    stageLevel: row.stageLevel,
+    status: row.status,
+    feedback: row.feedback,
+    tip: row.tip,
+    start: row.start,
+    end: row.end,
+    evidenceQuote: row.evidenceQuote,
+    highlightLabel: '',
+    stageNote: row.stageNote,
+    enrichedFromCsvAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+}
+
 async function enrichCurrentBoardFromCsv(file) {
   if (!file || enrichingCsv) return;
   if (!currentUser) { toast('로그인이 필요해요'); return; }
@@ -725,75 +1059,23 @@ async function enrichCurrentBoardFromCsv(file) {
   btn.disabled = true;
 
   try {
-    const text = await file.text();
-    const rows = parseCSV(text);
-    if (rows.length < 2) throw new Error('CSV를 읽을 수 없어요');
-
-    const csvByStudent = new Map();
-    rows.slice(1).forEach(r => {
-      if (r.length < 9 || !r[0]) return;
-      csvByStudent.set(studentKey(r[0]), {
-        studentNum: r[0],
-        status: r[1] || '',
-        score: parseInt(r[2], 10) || 0,
-        stage: r[3] || '',
-        feedback: r[4] || '',
-        tip: r[5] || '',
-        start: r[6] || '',
-        end: r[7] || '',
-        conv: r[8] || ''
-      });
-    });
-
-    const targets = allResults.filter(r =>
-      (r.csvTitle || '미분류') === currentBoard &&
-      csvByStudent.has(studentKey(r.studentNum))
-    );
-
+    const rows = parseStudentRowsFromCsv(await file.text());
+    const rowKeys = new Set(rows.map(r => studentKey(r.studentNum)));
+    const targets = allResults.filter(r => (r.csvTitle || '미분류') === currentBoard && rowKeys.has(studentKey(r.studentNum)));
     if (!targets.length) {
-      toast('현재 보드와 학생번호가 맞는 결과가 없어요');
+      toast('현재 보드와 학생번호가 맞는 이미지 결과가 없어요');
       return;
     }
 
-    const ok = confirm(`현재 보드 "${currentBoard}"의 기존 결과 ${targets.length}개에 CSV 대화/단계/근거를 보강할까요?\n이미지는 다시 만들지 않습니다.`);
+    const ok = confirm(`현재 보드 "${currentBoard}"의 기존 결과 ${targets.length}개에 CSV 대화/단계/근거를 보강하고, ${rows.length}명 기록을 누적 분석에 저장할까요?\n이미지는 다시 만들지 않습니다.`);
     if (!ok) return;
 
-    const collection = db.collection('users').doc(currentUser.uid).collection('results');
-    const affectedStudents = new Set();
-    let updated = 0;
-
-    for (let i = 0; i < targets.length; i += 450) {
-      const batch = db.batch();
-      targets.slice(i, i + 450).forEach(r => {
-        const row = csvByStudent.get(studentKey(r.studentNum));
-        const scoreForStage = row.score || r.score || 0;
-        const stageLevel = normalizeStage(row.stage, scoreForStage);
-        const evidenceQuote = extractLocalHighlight(row.conv);
-        const patch = {
-          conv: row.conv,
-          stage: row.stage,
-          stageLevel,
-          status: row.status,
-          feedback: row.feedback,
-          tip: row.tip,
-          start: row.start,
-          end: row.end,
-          evidenceQuote,
-          highlightLabel: '',
-          stageNote: stageNoteFor({ stageLevel, stage: row.stage, score: scoreForStage }),
-          enrichedFromCsvAt: firebase.firestore.FieldValue.serverTimestamp()
-        };
-        batch.update(collection.doc(r.id), patch);
-        Object.assign(r, patch);
-        affectedStudents.add(studentKey(r.studentNum));
-        updated++;
-      });
-      await batch.commit();
-    }
-
+    await upsertAnalyticsRecords(rows, currentBoard, file.name);
+    const { updated, affectedStudents } = await mergeCsvRowsIntoResults(rows, currentBoard);
     const roomCount = await refreshExistingRooms([...affectedStudents]);
+    renderAnalytics();
     renderBoards();
-    toast(`대화 보강 완료: ${updated}개${roomCount ? ` · 갤러리 방 ${roomCount}개 갱신` : ''}`);
+    toast(`대화 보강 완료: ${updated}개 · 분석 ${rows.length}명 누적${roomCount ? ` · 갤러리 방 ${roomCount}개 갱신` : ''}`);
   } catch (e) {
     console.error(e);
     toast('CSV 보강 실패: ' + e.message);
