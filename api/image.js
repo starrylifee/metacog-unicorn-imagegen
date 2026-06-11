@@ -5,7 +5,9 @@ export default async function handler(req, res) {
   if (!apiKey) return res.status(500).json({ error: 'GEMINI_API_KEY not configured' });
 
   const { prompt } = req.body;
-  const fullPrompt = prompt + ', expressive brushwork painting, artistic, emotional, no nudity, no adult content';
+  const fullPrompt = `${prompt}
+
+Keep the image grounded in the student's conversation evidence. Do not add cinematic lighting, fantasy details, decorative beauty, extra scenery, or emotional symbolism unless the prompt explicitly names it. No nudity, no adult content.`;
 
   // Imagen 3 시도
   const r1 = await fetch(

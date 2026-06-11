@@ -73,6 +73,7 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.9);backdrop-f
 .s-num{font-size:24px;font-weight:600;letter-spacing:-.5px;margin-bottom:2px}
 .s-stage{font-size:13px;opacity:.5;margin-bottom:10px}
 .s-fb{font-size:13px;line-height:1.55;color:#444}
+.s-highlight{font-size:12px;line-height:1.45;background:var(--soft);border-radius:8px;padding:8px 10px;margin-bottom:10px;color:#333}
 
 /* RESULT */
 .result-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
@@ -83,6 +84,13 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.9);backdrop-f
 .bubble{padding:8px 13px;border-radius:14px;font-size:14px;line-height:1.6;max-width:88%}
 .bubble.stu{background:var(--black);color:var(--white);align-self:flex-end;border-radius:14px 14px 2px 14px;font-weight:450}
 .bubble.bot{background:rgba(255,255,255,.8);color:#333;align-self:flex-start;border-radius:14px 14px 14px 2px}
+.quote-mark{background:var(--lime);color:var(--black);border-radius:5px;padding:1px 4px}
+.evidence-panel{display:flex;flex-direction:column;gap:12px}
+.evidence-kicker{font-size:11px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;opacity:.45}
+.evidence-quote{font-size:20px;font-weight:650;line-height:1.35;letter-spacing:0}
+.stage-note{font-size:13px;line-height:1.6;color:#444;background:rgba(255,255,255,.65);border-radius:10px;padding:10px 12px}
+.prompt-details{border-top:1px solid rgba(0,0,0,.08);padding-top:10px}
+.prompt-details summary{font-size:12px;font-weight:650;cursor:pointer;opacity:.55}
 .prompt-txt{font-size:14px;line-height:1.7;color:#333;font-style:italic}
 .img-box{aspect-ratio:1;border-radius:14px;overflow:hidden;background:rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center}
 .img-box img{width:100%;height:100%;object-fit:cover}
@@ -211,8 +219,18 @@ footer span{color:rgba(255,255,255,.8);font-weight:500}
     </div>
     <div style="display:flex;flex-direction:column;gap:16px">
       <div>
-        <div class="panel-title">🤖 AI가 뽑아낸 프롬프트</div>
-        <div class="panel"><p class="prompt-txt" id="prompt-txt" style="color:#999;font-style:normal">이미지를 생성하면 여기에 프롬프트가 표시됩니다.</p></div>
+        <div class="panel-title">🔎 대화에서 뽑은 근거</div>
+        <div class="panel evidence-panel">
+          <div>
+            <div class="evidence-kicker">특별히 남는 말</div>
+            <div class="evidence-quote" id="evidence-quote">학생을 선택하면 표시됩니다.</div>
+          </div>
+          <div class="stage-note" id="stage-note">도달단계에 맞춰 이미지가 얼마나 원본 관찰, 작가 생각, 자기 가치관을 반영할지 제한합니다.</div>
+          <details class="prompt-details">
+            <summary>생성 프롬프트 보기</summary>
+            <p class="prompt-txt" id="prompt-txt" style="color:#999;font-style:normal;margin-top:10px">이미지를 생성하면 여기에 프롬프트가 표시됩니다.</p>
+          </details>
+        </div>
       </div>
       <div>
         <div class="panel-title">🖼 생성된 이미지</div>
@@ -292,6 +310,15 @@ async function saveResult(s, promptEn, promptKo, img) {
       score: s.score,
       promptEn,
       promptKo,
+      conv: s.conv || '',
+      stage: s.stage || '',
+      stageLevel: s.stageLevel || normalizeStage(s.stage, s.score),
+      status: s.status || '',
+      feedback: s.feedback || '',
+      tip: s.tip || '',
+      evidenceQuote: s._evidenceQuote || s.highlight || '',
+      highlightLabel: s._highlightLabel || '',
+      stageNote: s._stageNote || stageNoteFor(s),
       imageUrl,
       imagePath: path,
       memo: '',
@@ -326,6 +353,76 @@ function safePrompt(text) {
   return text;
 }
 
+function normalizeStage(stage, score) {
+  const n = parseInt(stage, 10);
+  if (Number.isFinite(n) && n >= 1 && n <= 4) return n;
+  const s = parseInt(score, 10) || 0;
+  if (s <= 2) return 1;
+  if (s <= 5) return 2;
+  if (s <= 8) return 3;
+  return 4;
+}
+
+function stageNoteFor(s) {
+  const stage = normalizeStage(s.stage, s.score);
+  if (stage === 1) return '1단계라서 학생이 말한 대상과 색만 성긴 초안처럼 반영합니다.';
+  if (stage === 2) return '2단계라서 원본 관찰에 가까운 대상, 색, 위치만 반영하고 해석은 더하지 않습니다.';
+  if (stage === 3) return '3단계라서 관찰을 유지하되 학생이 말한 작가의 생각이나 분위기만 조심스럽게 더합니다.';
+  return '4단계라서 관찰과 작가 해석 위에 학생 자신의 가치관이나 판단을 대화 안에서만 더합니다.';
+}
+
+function studentUtterances(conv) {
+  return String(conv || '').split('\n')
+    .map(l => l.trim())
+    .filter(l => l.startsWith('[학생]'))
+    .map(l => l.replace(/^\[학생\]\s*/, '').trim())
+    .filter(Boolean);
+}
+
+function extractLocalHighlight(conv) {
+  const lines = studentUtterances(conv);
+  if (!lines.length) return '';
+  const generic = ['그림', '사람', '색', '부분', '보여', '있어', '같아', '느낌', '기분', '많이', '작가', '생각'];
+  const subjective = ['평화', '생동감', '산뜻', '경쾌', '자연스럽', '행복', '어두', '밝', '좋', '슬프', '무섭', '따뜻', '차갑'];
+  let best = '';
+  let bestScore = -1;
+  for (const line of lines) {
+    const parts = line.split(/[.!?。！？,，]| 그리고 | 그런데 | 하지만 | 그래서 | 왜냐하면 /).map(p => p.trim()).filter(Boolean);
+    for (const part of parts.length ? parts : [line]) {
+      const text = part.length > 42 ? part.slice(0, 42) : part;
+      if (text.length < 4) continue;
+      let score = Math.min(text.length, 32);
+      subjective.forEach(w => { if (text.includes(w)) score += 18; });
+      generic.forEach(w => { if (text === w || text.length <= w.length + 2) score -= 6; });
+      if (score > bestScore) {
+        best = text;
+        bestScore = score;
+      }
+    }
+  }
+  return best || lines[0].slice(0, 42);
+}
+
+function parsePromptJson(raw) {
+  try {
+    const clean = String(raw || '').replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+    return JSON.parse(clean);
+  } catch {
+    return {};
+  }
+}
+
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderMarkedText(text, quote) {
+  const source = String(text || '');
+  const q = String(quote || '').trim();
+  if (!q || !source.includes(q)) return escHtml(source);
+  return source.split(q).map(escHtml).join(`<mark class="quote-mark">${escHtml(q)}</mark>`);
+}
+
 // CSV parser
 function parseCSV(t) {
   const rows=[];let i=0,row=[],f='',q=false;
@@ -342,10 +439,16 @@ function processFile() {
   reader.onload = e => {
     const rows = parseCSV(e.target.result);
     if(rows.length<2){toast('파일을 읽을 수 없어요 😢');return;}
-    students = rows.slice(1).filter(r=>r.length>=9&&r[0]).map(r=>({
-      num:r[0],status:r[1],score:parseInt(r[2])||0,stage:r[3],
-      feedback:r[4],tip:r[5],start:r[6],end:r[7],conv:r[8]
-    }));
+    students = rows.slice(1).filter(r=>r.length>=9&&r[0]).map(r=>{
+      const score = parseInt(r[2]) || 0;
+      const stage = r[3] || '';
+      const conv = r[8] || '';
+      return {
+        num:r[0],status:r[1],score,stage,stageLevel:normalizeStage(stage, score),
+        feedback:r[4],tip:r[5],start:r[6],end:r[7],conv,
+        highlight:extractLocalHighlight(conv)
+      };
+    });
     // 최대 점수 파악
     globalMaxScore = Math.max(...students.map(s=>s.score), 5);
     // 셔플 후 알파벳 배정
@@ -357,41 +460,16 @@ function processFile() {
     const topStudents = students.filter(s=>s.score===maxScore);
     document.getElementById('students-title').textContent = `총 ${students.length}명의 감상 기록 ✍️`;
     const topLabels = topStudents.map(s=>s.label).join(', ');
-    document.getElementById('top-title').innerHTML = `🏆 최고점 <strong>${maxScore}점</strong> — ${topLabels} 학생 (${topStudents.length}명) &nbsp;✨ 프롬프트 추출 중...`;
+    document.getElementById('top-title').innerHTML = `🏆 최고점 <strong>${maxScore}점</strong> — ${topLabels} 학생 (${topStudents.length}명)의 대화 근거`;
     document.getElementById('top-banner').classList.remove('hidden');
     document.getElementById('top-prompts').innerHTML = topStudents.map(s=>`<div id="top-p-${s.label}" style="background:rgba(0,0,0,.15);border-radius:10px;padding:12px 14px">
-      <div style="font-size:13px;font-weight:600;margin-bottom:4px">${s.label} 학생</div>
-      <div style="font-size:13px;opacity:.7">⏳ 프롬프트 생성 중...</div>
+      <div style="font-size:13px;font-weight:600;margin-bottom:4px">${s.label} 학생 · ${s.stageLevel}단계</div>
+      <div style="font-size:14px;line-height:1.7">“${escHtml(s.highlight || '학생 발화 근거 없음')}”</div>
     </div>`).join('');
     students.forEach((s,i)=>{if(s.score===maxScore) document.getElementById(`c${i}`).style.borderColor='var(--coral)';});
     document.getElementById('students-section').scrollIntoView({behavior:'smooth',block:'start'});
-    // 최고점 학생 프롬프트 자동 추출
-    extractTopPrompts(topStudents);
   };
   reader.readAsText(file,'UTF-8');
-}
-
-async function extractTopPrompts(topStudents) {
-  const apiKey = document.getElementById('api-key').value.trim();
-  if(!apiKey && !isVercel) {
-    document.getElementById('top-title').innerHTML = document.getElementById('top-title').innerHTML.replace('✨ 프롬프트 추출 중...','');
-    return;
-  }
-  let done = 0;
-  for(const s of topStudents) {
-    const el = document.getElementById(`top-p-${s.label}`);
-    try {
-      const { en: promptEn, ko: promptKo } = await extractPrompt(s, apiKey);
-      el.innerHTML = `<div style="font-size:13px;font-weight:600;margin-bottom:6px">${s.label} 학생의 감상 프롬프트</div>
-        <div style="font-size:14px;line-height:1.7">${safePrompt(promptKo)}</div>`;
-    } catch(e) {
-      el.innerHTML = `<div style="font-size:13px;font-weight:600;margin-bottom:4px">${s.label} 학생</div>
-        <div style="font-size:13px;opacity:.7">❌ ${e.message.slice(0,40)}</div>`;
-    }
-    done++;
-    if(done < topStudents.length) await new Promise(r => setTimeout(r, 500));
-  }
-  document.getElementById('top-title').innerHTML = document.getElementById('top-title').innerHTML.replace(' &nbsp;✨ 프롬프트 추출 중...', ' ✅');
 }
 
 const scoreLabel = {
@@ -407,9 +485,10 @@ function renderStudents() {
       <button class="real-toggle" id="rt-${i}" onclick="toggleReal(event,${i})">실명</button>
       <span class="s-badge s${s.score}">${scoreLabel[s.score] || '⭐ ' + s.score + '점'}</span>
       <div class="s-num" id="snum-${i}">${s.label} 학생</div>
-      <div class="s-real hidden" id="real-${i}">${s.num}</div>
-      <div class="s-stage">${s.stage}단계 도달 · ${s.status}</div>
-      <div class="s-fb">${s.feedback?s.feedback.slice(0,72)+'…':''}</div>
+      <div class="s-real hidden" id="real-${i}">${escHtml(s.num)}</div>
+      <div class="s-stage">${s.stageLevel}단계 도달 · ${escHtml(s.status || '')}</div>
+      <div class="s-highlight">“${escHtml(s.highlight || '근거 발화 없음')}”</div>
+      <div class="s-fb">${s.feedback?escHtml(s.feedback.slice(0,72))+'…':''}</div>
       <div class="card-thumb" id="thumb-${i}"></div>
       <div class="card-status" id="status-${i}"></div>
     </div>`).join('');
@@ -437,7 +516,7 @@ function toggleReal(e, i) {
 function updateResultTitle(i) {
   const s = students[i];
   const realTag = s.showReal ? ` <span style="font-size:16px;font-weight:400;opacity:.6;font-family:'JetBrains Mono',monospace">(${s.num})</span>` : '';
-  document.getElementById('result-title').innerHTML = `${s.label} 학생${realTag} · ${scoreLabel[s.score] || s.score + '점'} / ${globalMaxScore}점`;
+  document.getElementById('result-title').innerHTML = `${s.label} 학생${realTag} · ${s.stageLevel}단계 · ${scoreLabel[s.score] || s.score + '점'} / ${globalMaxScore}점`;
 }
 
 function selectStudent(idx) {
@@ -447,17 +526,16 @@ function selectStudent(idx) {
   const s = students[idx];
   updateResultTitle(idx);
   document.getElementById('score-bar').innerHTML = Array.from({length:globalMaxScore},(_,n)=>`<div class="score-pip${n<s.score?' filled':''}"></div>`).join('');
-  renderConv(s.conv);
+  renderEvidence(s);
+  renderConv(s.conv, s._evidenceQuote || s.highlight);
   document.getElementById('dl-wrap').innerHTML='';
   // 이미 생성된 이미지가 있으면 바로 표시
   if(s._img && s._prompt) {
-    document.getElementById('prompt-txt').textContent = safePrompt(s._promptKo || s._prompt);
-    document.getElementById('prompt-txt').style.cssText='font-style:italic;color:#333';
+    setPromptText(safePrompt(s._promptKo || s._prompt), true);
     document.getElementById('img-frame').innerHTML=`<img src="data:${s._img.mime};base64,${s._img.data}" alt="생성 이미지" onclick="openLightbox(this.src)" style="cursor:zoom-in">`;
     document.getElementById('dl-wrap').innerHTML=`<button class="btn btn-dark" style="width:100%;padding:13px" onclick="downloadImage()">💾 이미지 다운로드</button>`;
   } else {
-    document.getElementById('prompt-txt').textContent='이미지 생성 버튼을 누르면 AI가 프롬프트를 만들어요!';
-    document.getElementById('prompt-txt').style.cssText='color:#999;font-style:normal';
+    setPromptText('이미지를 생성하면 보조 프롬프트가 여기에 저장됩니다.', false);
     document.getElementById('img-frame').innerHTML=`<div class="placeholder"><div class="pi">🎨</div><p>버튼을 누르면<br>이미지가 나타나요</p></div>`;
   }
   document.getElementById('result-wrap').classList.remove('hidden');
@@ -470,11 +548,24 @@ function openLightbox(src) {
   document.getElementById('lightbox').classList.add('on');
 }
 
-function renderConv(conv) {
+function renderEvidence(s) {
+  const quote = s._evidenceQuote || s.highlight || '학생 발화 근거 없음';
+  const label = s._highlightLabel ? `${s._highlightLabel}: ` : '';
+  document.getElementById('evidence-quote').textContent = `${label}“${quote}”`;
+  document.getElementById('stage-note').textContent = s._stageNote || stageNoteFor(s);
+}
+
+function setPromptText(text, ready) {
+  const el = document.getElementById('prompt-txt');
+  el.textContent = text;
+  el.style.cssText = ready ? 'font-style:italic;color:#333;margin-top:10px' : 'color:#999;font-style:normal;margin-top:10px';
+}
+
+function renderConv(conv, highlight) {
   const panel = document.getElementById('conv-panel');
-  panel.innerHTML = conv.split('\n').filter(l=>l.trim()).map(l=>{
-    if(l.startsWith('[학생]')) return `<div class="bubble stu">${l.replace('[학생] ','')}</div>`;
-    if(l.startsWith('[유니콘]')) return `<div class="bubble bot">🦄 ${l.replace('[유니콘] ','')}</div>`;
+  panel.innerHTML = String(conv || '').split('\n').filter(l=>l.trim()).map(l=>{
+    if(l.startsWith('[학생]')) return `<div class="bubble stu">${renderMarkedText(l.replace(/^\[학생\]\s*/,''), highlight)}</div>`;
+    if(l.startsWith('[유니콘]')) return `<div class="bubble bot">🦄 ${escHtml(l.replace(/^\[유니콘\]\s*/,''))}</div>`;
     return '';
   }).join('');
 }
@@ -489,12 +580,17 @@ async function generateForSelected() {
   lockButtons(true);
   const s = students[selIdx];
   document.getElementById('img-frame').innerHTML=`<div class="placeholder"><div class="spin"></div><p>AI가 열심히 그리고 있어요!</p></div>`;
-  document.getElementById('prompt-txt').textContent='프롬프트 생성 중...';
+  setPromptText('프롬프트 생성 중...', false);
   document.getElementById('dl-wrap').innerHTML='';
   try {
-    const { en: promptEn, ko: promptKo } = await extractPrompt(s, apiKey);
-    document.getElementById('prompt-txt').textContent = safePrompt(promptKo);
-    document.getElementById('prompt-txt').style.cssText='font-style:italic;color:#333';
+    const promptData = await extractPrompt(s, apiKey);
+    const { en: promptEn, ko: promptKo } = promptData;
+    s._evidenceQuote = promptData.evidenceQuote || s.highlight || '';
+    s._highlightLabel = promptData.highlightLabel || '';
+    s._stageNote = promptData.stageNote || stageNoteFor(s);
+    renderEvidence(s);
+    renderConv(s.conv, s._evidenceQuote || s.highlight);
+    setPromptText(safePrompt(promptKo), true);
     const img = await generateImage(promptEn, apiKey);
     // 캐시 저장
     s._prompt = promptEn;
@@ -526,33 +622,56 @@ function lockButtons(lock){
 
 async function extractPrompt(s, apiKey) {
   if(isVercel) {
-    const res = await fetch('/api/prompt',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({studentNum:s.num,score:s.score,conv:s.conv})});
+    const res = await fetch('/api/prompt',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({studentNum:s.num,score:s.score,stage:s.stage,conv:s.conv})});
     if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e?.error||`서버 오류 ${res.status}`);}
     const d=await res.json();
-    return { en: d.prompt, ko: d.promptKo || d.prompt };
+    return {
+      en: d.prompt,
+      ko: d.promptKo || d.prompt,
+      evidenceQuote: d.evidenceQuote || s.highlight || '',
+      highlightLabel: d.highlightLabel || '',
+      stageNote: d.stageNote || stageNoteFor(s)
+    };
   }
-  const wordCounts = {1:15, 2:30, 3:60, 4:90, 5:120};
-  const wc = wordCounts[s.score] || 60;
-  const sys = `You convert a student's art chat into an English image prompt.
+  const stageLevel = normalizeStage(s.stage, s.score);
+  const wordCounts = {1:45, 2:75, 3:120, 4:160};
+  const wc = wordCounts[stageLevel] || 75;
+  const sys = `You convert a student's Korean art-appreciation chat into an English image prompt and evidence metadata.
 
-- Only use what the student said. Add nothing else.
-- The student spoke little? Then the prompt is short and vague.
-- The student described a lot, imagined stories, expressed emotions? Then the prompt is rich and detailed.
-- Do NOT reference the original artwork or artist. Only the student's own words matter.
-- Output: English image prompt only, ~${wc} words. No explanation.`;
+Rules:
+- Use only what the student actually said. Add no original artwork facts, no art history, no upgraded beauty.
+- If the student's words are sparse, the image prompt must stay sparse and incomplete.
+- The image depth follows stage ${stageLevel}, not the score.
+- Stage 1: a rough draft with only named objects and colors. Leave unknown areas simple.
+- Stage 2: a literal reconstruction of the student's observed original: objects, colors, positions. No added emotion, story, symbolism, artist intention, or cinematic polish.
+- Stage 3: keep the literal reconstruction, then add artist intention or mood only if the student said it.
+- Stage 4: keep stages 2 and 3, then add the student's own values or personal judgment only if the student said it.
+- If people appear, describe them as flat color shapes or simple paper-collage figures. No realistic bodies, silhouettes, nudity, or partial nudity.
+- Choose one distinctive evidenceQuote from the student's exact Korean words, 4-40 Korean characters.
+
+Output JSON only:
+{"en":"English image prompt under ${wc} words","ko":"Natural Korean translation of the prompt","evidenceQuote":"exact short Korean quote from the student","highlightLabel":"short Korean label under 8 characters","stageNote":"one Korean sentence explaining how stage ${stageLevel} constrained the image"}`;
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,{
     method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({
       systemInstruction:{parts:[{text:sys}]},
-      contents:[{role:'user',parts:[{text:`Student #${s.num}, Score: ${s.score}/5\n\nConversation:\n${s.conv}`}]}],
-      generationConfig:{temperature:0.7,maxOutputTokens:1024,thinkingConfig:{thinkingBudget:0}}
+      contents:[{role:'user',parts:[{text:`Student #${s.num}, Score: ${s.score}, Stage: ${stageLevel}\n\nConversation:\n${s.conv}`}]}],
+      generationConfig:{temperature:0.45,maxOutputTokens:1200,responseMimeType:'application/json',thinkingConfig:{thinkingBudget:0}}
     })
   });
   if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e?.error?.message||`텍스트 API 오류 ${res.status}`);}
   const d=await res.json();
-  const en = d.candidates?.[0]?.content?.parts?.[0]?.text?.trim()||'프롬프트 생성 실패';
-  const ko = await translateToKorean(en, apiKey);
-  return { en, ko };
+  const raw = d.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '{}';
+  const parsed = parsePromptJson(raw);
+  const en = parsed.en || raw || '프롬프트 생성 실패';
+  const ko = parsed.ko || await translateToKorean(en, apiKey);
+  return {
+    en,
+    ko,
+    evidenceQuote: parsed.evidenceQuote || s.highlight || '',
+    highlightLabel: parsed.highlightLabel || '',
+    stageNote: parsed.stageNote || stageNoteFor(s)
+  };
 }
 
 async function translateToKorean(text, apiKey) {
@@ -581,7 +700,9 @@ async function generateImage(prompt, apiKey) {
     if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e?.error||`서버 오류 ${res.status}`);}
     return await res.json();
   }
-  const fullPrompt = prompt + ', expressive brushwork painting, artistic, emotional';
+  const fullPrompt = `${prompt}
+
+Keep the image grounded in the student's conversation evidence. Do not add cinematic lighting, fantasy details, decorative beauty, extra scenery, or emotional symbolism unless the prompt explicitly names it. No nudity, no adult content.`;
   const controller = new AbortController();
   const timeout = setTimeout(()=>controller.abort(), 60000);
   try {
@@ -657,12 +778,16 @@ async function generateAll() {
     const st = document.getElementById(`status-${i}`);
     st.className='card-status wait'; st.textContent='⏳ 생성 중...';
     try {
-      const { en: prompt, ko: promptKo } = await extractPrompt(s, apiKey);
+      const promptData = await extractPrompt(s, apiKey);
+      const { en: prompt, ko: promptKo } = promptData;
       const img = await generateImage(prompt, apiKey);
       document.getElementById(`thumb-${i}`).innerHTML = `<img src="data:${img.mime};base64,${img.data}">`;
       students[i]._img = img;
       students[i]._prompt = prompt;
       students[i]._promptKo = promptKo;
+      students[i]._evidenceQuote = promptData.evidenceQuote || students[i].highlight || '';
+      students[i]._highlightLabel = promptData.highlightLabel || '';
+      students[i]._stageNote = promptData.stageNote || stageNoteFor(students[i]);
       st.className='card-status done'; st.textContent='✅ 완료';
       saveResult(students[i], prompt, promptKo, img);
     } catch(e) {

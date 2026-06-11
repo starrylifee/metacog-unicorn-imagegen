@@ -52,13 +52,24 @@ kbd{background:rgba(255,255,255,.12);border-radius:5px;padding:3px 8px;font-size
 #ihint{position:fixed;bottom:72px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.75);border:1px solid rgba(255,255,255,.12);border-radius:50px;padding:7px 18px;font-size:12px;display:none;z-index:30;pointer-events:none;white-space:nowrap;color:#ccc}
 
 /* ── INFO PANEL ── */
-#panel{position:fixed;top:50%;right:20px;transform:translateY(-50%);width:280px;background:rgba(8,8,12,.93);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,.09);border-radius:18px;overflow:hidden;z-index:60;display:none}
+#panel{position:fixed;top:50%;right:20px;transform:translateY(-50%);width:280px;max-height:calc(100dvh - 40px);background:rgba(8,8,12,.93);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,.09);border-radius:18px;overflow-y:auto;z-index:60;display:none}
+#panel::-webkit-scrollbar{width:4px}#panel::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:4px}
 #panel-img{width:100%;aspect-ratio:1;object-fit:cover;display:block}
 .pb{padding:14px}
 .p-badge{display:inline-block;border-radius:50px;padding:2px 9px;font-size:11px;font-weight:600;margin-bottom:6px}
 .p0{background:#333;color:#888}.p1,.p2{background:#444;color:#aaa}.p3,.p4{background:#555;color:#ccc}.p5,.p6{background:#777;color:#fff}.p7,.p8{background:#aaa;color:#111}.p9,.p10{background:#C8FA4C;color:#0a0a0a}
 .p-name{font-size:16px;font-weight:700;margin-bottom:1px}
 .p-session{font-size:11px;color:#555;margin-bottom:8px;font-family:'JetBrains Mono',monospace}
+.p-evidence{font-size:14px;font-weight:700;line-height:1.45;color:#0a0a0a;background:#C8FA4C;border-radius:10px;padding:8px 10px;margin-bottom:8px}
+.p-stage{font-size:11px;line-height:1.55;color:#888;background:rgba(255,255,255,.06);border-radius:10px;padding:8px 10px;margin-bottom:8px}
+.p-label{font-size:10px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:#666;margin:10px 0 6px}
+.p-conv{max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.p-conv::-webkit-scrollbar{width:3px}.p-conv::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:3px}
+.p-bubble{padding:6px 9px;border-radius:10px;font-size:11px;line-height:1.5;max-width:90%}
+.p-bubble.stu{background:rgba(255,255,255,.9);color:#111;align-self:flex-end;border-radius:10px 10px 2px 10px}
+.p-bubble.bot{background:rgba(255,255,255,.08);color:#aaa;align-self:flex-start;border-radius:10px 10px 10px 2px}
+.quote-mark{background:#C8FA4C;color:#0a0a0a;border-radius:4px;padding:1px 3px}
+.p-details summary{font-size:11px;font-weight:700;color:#777;cursor:pointer;margin-bottom:6px}
 .p-prompt{font-size:12px;line-height:1.7;color:#aaa;font-style:italic;max-height:110px;overflow-y:auto;margin-bottom:12px}
 .p-prompt::-webkit-scrollbar{width:3px}.p-prompt::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:3px}
 .p-close{width:100%;background:rgba(255,255,255,.06);border:none;border-radius:50px;padding:8px;font-size:12px;color:#888;cursor:pointer}
@@ -113,7 +124,14 @@ kbd{background:rgba(255,255,255,.12);border-radius:5px;padding:3px 8px;font-size
     <span class="p-badge" id="p-badge"></span>
     <div class="p-name" id="p-name"></div>
     <div class="p-session" id="p-session"></div>
-    <div class="p-prompt" id="p-prompt"></div>
+    <div class="p-evidence" id="p-evidence"></div>
+    <div class="p-stage" id="p-stage"></div>
+    <div class="p-label">학생-챗봇 대화</div>
+    <div class="p-conv" id="p-conv"></div>
+    <details class="p-details">
+      <summary>생성 프롬프트</summary>
+      <div class="p-prompt" id="p-prompt"></div>
+    </details>
     <button class="p-close" onclick="closePanel()">닫기 (ESC)</button>
   </div>
 </div>
@@ -468,6 +486,66 @@ function safePrompt(t){
   return t;
 }
 
+function escHtml(s){
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function normalizeStage(stage, score){
+  const n=parseInt(stage,10);
+  if(Number.isFinite(n)&&n>=1&&n<=4) return n;
+  const s=parseInt(score,10)||0;
+  if(s<=2) return 1;
+  if(s<=5) return 2;
+  if(s<=8) return 3;
+  return 4;
+}
+
+function stageNoteFor(d){
+  const stage=d.stageLevel||normalizeStage(d.stage,d.score);
+  if(stage===1) return '1단계: 말한 대상과 색만 간단히 반영';
+  if(stage===2) return '2단계: 원본 관찰에 가까운 대상, 색, 위치만 반영';
+  if(stage===3) return '3단계: 말한 작가 생각이나 분위기만 추가';
+  return '4단계: 말한 자기 가치관이나 판단까지 추가';
+}
+
+function studentUtterances(conv){
+  return String(conv||'').split('\n').map(l=>l.trim()).filter(l=>l.startsWith('[학생]')).map(l=>l.replace(/^\[학생\]\s*/,'').trim()).filter(Boolean);
+}
+
+function extractLocalHighlight(conv){
+  const lines=studentUtterances(conv);
+  if(!lines.length) return '';
+  const subjective=['평화','생동감','산뜻','경쾌','자연스럽','행복','어두','밝','좋','슬프','무섭','따뜻','차갑'];
+  let best='', bestScore=-1;
+  for(const line of lines){
+    const parts=line.split(/[.!?。！？,，]| 그리고 | 그런데 | 하지만 | 그래서 | 왜냐하면 /).map(p=>p.trim()).filter(Boolean);
+    for(const part of parts.length?parts:[line]){
+      const text=part.length>42?part.slice(0,42):part;
+      if(text.length<4) continue;
+      let score=Math.min(text.length,32);
+      subjective.forEach(w=>{if(text.includes(w))score+=18;});
+      if(score>bestScore){best=text;bestScore=score;}
+    }
+  }
+  return best||lines[0].slice(0,42);
+}
+
+function renderMarkedText(text,quote){
+  const source=String(text||'');
+  const q=String(quote||'').trim();
+  if(!q||!source.includes(q)) return escHtml(source);
+  return source.split(q).map(escHtml).join(`<mark class="quote-mark">${escHtml(q)}</mark>`);
+}
+
+function renderConversationHtml(conv,highlight){
+  const html=String(conv||'').split('\n').filter(l=>l.trim()).map(l=>{
+    if(l.startsWith('[학생]')) return `<div class="p-bubble stu">${renderMarkedText(l.replace(/^\[학생\]\s*/,''),highlight)}</div>`;
+    if(l.startsWith('[유니콘]')) return `<div class="p-bubble bot">🦄 ${escHtml(l.replace(/^\[유니콘\]\s*/,''))}</div>`;
+    return '';
+  }).join('');
+  return html||'<div style="font-size:11px;color:#777">저장된 대화가 없어요.</div>';
+}
+
 /* ── panel ── */
 window.openPanel=function(mesh){
   const d=mesh.userData.data;
@@ -481,6 +559,10 @@ window.openPanel=function(mesh){
   document.getElementById('p-badge').textContent=`${scoreLabel[sc]} ${scoreText[sc]||d.score+'점'}`;
   document.getElementById('p-name').textContent=`${d.label||''} 학생`;
   document.getElementById('p-session').textContent=d.csvTitle||'';
+  const quote=d.evidenceQuote||extractLocalHighlight(d.conv||'')||'저장된 대화 근거 없음';
+  document.getElementById('p-evidence').textContent=`“${quote}”`;
+  document.getElementById('p-stage').textContent=d.stageNote||stageNoteFor(d);
+  document.getElementById('p-conv').innerHTML=renderConversationHtml(d.conv||'', quote);
   document.getElementById('p-prompt').textContent=safePrompt(d.promptKo||d.promptEn||'');
   document.getElementById('panel').style.display='block';
 };

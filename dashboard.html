@@ -7,6 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -90,6 +91,15 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.92);backdrop-
 .detail-real{font-size:13px;color:#888;font-family:'JetBrains Mono',monospace}
 .detail-prompt{font-size:13px;line-height:1.75;color:#333;font-style:italic;background:var(--soft);border-radius:10px;padding:12px 14px;max-height:180px;overflow-y:auto}
 .detail-prompt::-webkit-scrollbar{width:3px}.detail-prompt::-webkit-scrollbar-thumb{background:rgba(0,0,0,.1);border-radius:3px}
+.detail-evidence{font-size:16px;font-weight:650;line-height:1.45;background:var(--lime);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.detail-stage{font-size:12px;line-height:1.55;color:#555;background:var(--soft);border-radius:10px;padding:9px 11px;margin-bottom:8px}
+.detail-conv{max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:7px;background:var(--soft);border-radius:10px;padding:10px}
+.detail-conv::-webkit-scrollbar{width:3px}.detail-conv::-webkit-scrollbar-thumb{background:rgba(0,0,0,.1);border-radius:3px}
+.mini-bubble{padding:7px 10px;border-radius:12px;font-size:12px;line-height:1.55;max-width:88%}
+.mini-bubble.stu{background:var(--black);color:var(--white);align-self:flex-end;border-radius:12px 12px 2px 12px}
+.mini-bubble.bot{background:var(--white);color:#444;align-self:flex-start;border-radius:12px 12px 12px 2px}
+.quote-mark{background:var(--lime);color:var(--black);border-radius:4px;padding:1px 3px}
+.prompt-details summary{font-size:12px;font-weight:650;color:#888;cursor:pointer;margin-top:8px}
 .detail-memo{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-family:'Inter',sans-serif;font-size:13px;resize:none;min-height:64px;transition:border-color .15s;line-height:1.5}
 .detail-memo:focus{outline:none;border-color:var(--black)}
 .detail-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -158,6 +168,9 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.92);backdrop-
       <button class="chip" id="real-toggle" onclick="toggleReal()">실명 보기</button>
       <button class="chip on" id="sort-date" onclick="setSort('date')">최신순</button>
       <button class="chip" id="sort-score" onclick="setSort('score')">점수순</button>
+      <button class="chip" id="enrich-btn" onclick="document.getElementById('enrich-csv-input').click()">CSV 대화 보강</button>
+      <input type="file" id="enrich-csv-input" accept=".csv" style="display:none" onchange="enrichCurrentBoardFromCsv(this.files[0]);this.value=''">
+      <button class="chip" id="board-zip-btn" onclick="downloadCurrentBoardImages()">회차 ZIP 다운로드</button>
       <button class="chip" id="gal-btn" onclick="openGalModal()">🖼 갤러리 코드</button>
     </div>
   </div>
@@ -198,9 +211,15 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.92);backdrop-
           <div class="detail-name" id="m-label"></div>
           <div class="detail-real" id="m-real"></div>
         </div>
-        <div id="m-prompt-wrap">
-          <div class="detail-label">AI 프롬프트</div>
-          <div class="detail-prompt" id="m-prompt"></div>
+        <div id="m-evidence-wrap">
+          <div class="detail-label">대화 근거</div>
+          <div class="detail-evidence" id="m-evidence"></div>
+          <div class="detail-stage" id="m-stage"></div>
+          <div class="detail-conv" id="m-conv"></div>
+          <details class="prompt-details" id="m-prompt-wrap">
+            <summary>생성 프롬프트 보기</summary>
+            <div class="detail-prompt" id="m-prompt" style="margin-top:8px"></div>
+          </details>
         </div>
         <div>
           <div class="detail-label">메모</div>
@@ -256,6 +275,8 @@ let showReal = false;
 let currentDocId = null;
 let currentBoard = null;
 let sortedGroupsCache = [];
+let enrichingCsv = false;
+let downloadingBoardZip = false;
 
 const scoreLabel = {
   0:'⏸️ 미완료', 1:'😴 아쉬웠어요', 2:'🤔 조금 더!', 3:'😊 잘했어요!',
@@ -274,6 +295,35 @@ function safePrompt(text) {
     } catch { return text; }
   }
   return text;
+}
+
+function parseCSV(t) {
+  const rows = [];
+  let i = 0, row = [], f = '', q = false;
+  while (i < t.length) {
+    const c = t[i];
+    if (q) {
+      if (c === '"' && t[i + 1] === '"') { f += '"'; i += 2; }
+      else if (c === '"') { q = false; i++; }
+      else { f += c; i++; }
+    } else {
+      if (c === '"') { q = true; i++; }
+      else if (c === ',') { row.push(f); f = ''; i++; }
+      else if (c === '\r' && t[i + 1] === '\n') { row.push(f); rows.push(row); row = []; f = ''; i += 2; }
+      else if (c === '\n') { row.push(f); rows.push(row); row = []; f = ''; i++; }
+      else { f += c; i++; }
+    }
+  }
+  if (f || row.length) { row.push(f); rows.push(row); }
+  return rows;
+}
+
+function studentKey(value) {
+  return String(value ?? '').trim();
+}
+
+function currentBoardItems() {
+  return allResults.filter(r => (r.csvTitle || '미분류') === currentBoard);
 }
 
 auth.onAuthStateChanged(user => {
@@ -423,6 +473,11 @@ function openDetail(docId) {
   document.getElementById('m-date').textContent = date;
   document.getElementById('m-label').textContent = `${r.label || ''} 학생`;
   document.getElementById('m-real').textContent = r.studentNum ? `학번 · ${r.studentNum}` : '';
+  const quote = r.evidenceQuote || extractLocalHighlight(r.conv || '') || '';
+  document.getElementById('m-evidence').textContent = quote ? `“${quote}”` : '저장된 대화 근거가 없어요';
+  document.getElementById('m-stage').textContent = r.stageNote || stageNoteFor(r);
+  document.getElementById('m-conv').innerHTML = renderConversationHtml(r.conv || '', quote);
+  document.getElementById('m-evidence-wrap').style.display = (r.conv || quote || r.stageNote || prompt) ? '' : 'none';
   document.getElementById('m-prompt').textContent = prompt || '프롬프트 없음';
   document.getElementById('m-prompt-wrap').style.display = prompt ? '' : 'none';
   document.getElementById('m-memo').value = r.memo || '';
@@ -474,6 +529,96 @@ function downloadImage(r) {
   a.click();
 }
 
+async function downloadCurrentBoardImages() {
+  if (downloadingBoardZip) return;
+  if (!currentBoard) { toast('먼저 회차를 선택해주세요'); return; }
+  if (typeof JSZip === 'undefined') { toast('ZIP 라이브러리를 불러오지 못했어요'); return; }
+
+  const items = currentBoardItems()
+    .filter(r => r.imageUrl)
+    .sort((a, b) => studentKey(a.studentNum || a.label).localeCompare(studentKey(b.studentNum || b.label), 'ko', { numeric: true }));
+
+  if (!items.length) { toast('다운로드할 이미지가 없어요'); return; }
+
+  downloadingBoardZip = true;
+  const btn = document.getElementById('board-zip-btn');
+  const oldText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = `준비 중 0/${items.length}`;
+
+  const zip = new JSZip();
+  let ok = 0;
+  let fail = 0;
+
+  try {
+    for (const [idx, r] of items.entries()) {
+      btn.textContent = `다운로드 ${idx + 1}/${items.length}`;
+      try {
+        const blob = await fetchImageBlob(r.imageUrl);
+        const ext = imageExt(blob.type, r.imageUrl);
+        const base = `${padStudent(r.studentNum || r.label || idx + 1)}_${r.label || 'student'}_score${r.score || 0}`;
+        zip.file(`${safeFileName(base)}.${ext}`, blob);
+        ok++;
+      } catch (e) {
+        console.warn('이미지 다운로드 실패:', r, e);
+        fail++;
+      }
+    }
+
+    if (!ok) throw new Error('이미지를 내려받지 못했어요');
+
+    btn.textContent = 'ZIP 압축 중...';
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${safeFileName(currentBoard)}_${ok}images.zip`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast(`회차 ZIP 다운로드 완료: ${ok}개${fail ? ` · 실패 ${fail}개` : ''}`);
+  } catch (e) {
+    console.error(e);
+    toast('회차 ZIP 다운로드 실패: ' + e.message);
+  } finally {
+    downloadingBoardZip = false;
+    btn.disabled = false;
+    btn.textContent = oldText;
+  }
+}
+
+async function fetchImageBlob(url) {
+  try {
+    const direct = await fetch(url);
+    if (direct.ok) return await direct.blob();
+  } catch {}
+
+  const proxyUrl = `/api/imgproxy?url=${encodeURIComponent(url)}`;
+  const proxied = await fetch(proxyUrl);
+  if (!proxied.ok) throw new Error(`이미지 요청 실패 ${proxied.status}`);
+  return await proxied.blob();
+}
+
+function imageExt(mime, url) {
+  if (mime?.includes('png')) return 'png';
+  if (mime?.includes('webp')) return 'webp';
+  if (mime?.includes('jpeg') || mime?.includes('jpg')) return 'jpg';
+  const clean = String(url || '').split('?')[0].toLowerCase();
+  if (clean.endsWith('.png')) return 'png';
+  if (clean.endsWith('.webp')) return 'webp';
+  return 'jpg';
+}
+
+function padStudent(value) {
+  const s = studentKey(value);
+  return /^\d+$/.test(s) ? s.padStart(2, '0') : s;
+}
+
+function safeFileName(value) {
+  return String(value || 'download')
+    .replace(/[\\/:*?"<>|]/g, '_')
+    .replace(/\s+/g, '_')
+    .slice(0, 120);
+}
+
 async function deleteResult(docId, imagePath) {
   if (!confirm('이 결과를 삭제할까요?')) return;
   try {
@@ -504,7 +649,183 @@ document.addEventListener('keydown', e => {
 });
 
 function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function normalizeStage(stage, score) {
+  const n = parseInt(stage, 10);
+  if (Number.isFinite(n) && n >= 1 && n <= 4) return n;
+  const s = parseInt(score, 10) || 0;
+  if (s <= 2) return 1;
+  if (s <= 5) return 2;
+  if (s <= 8) return 3;
+  return 4;
+}
+
+function stageNoteFor(r) {
+  const stage = r.stageLevel || normalizeStage(r.stage, r.score);
+  if (stage === 1) return '1단계: 학생이 말한 대상과 색만 성긴 초안처럼 반영했습니다.';
+  if (stage === 2) return '2단계: 원본 관찰에 가까운 대상, 색, 위치만 반영하고 해석은 더하지 않았습니다.';
+  if (stage === 3) return '3단계: 관찰을 유지하되 학생이 말한 작가의 생각이나 분위기만 더했습니다.';
+  return '4단계: 관찰과 작가 해석 위에 학생 자신의 가치관이나 판단을 대화 안에서만 더했습니다.';
+}
+
+function studentUtterances(conv) {
+  return String(conv || '').split('\n')
+    .map(l => l.trim())
+    .filter(l => l.startsWith('[학생]'))
+    .map(l => l.replace(/^\[학생\]\s*/, '').trim())
+    .filter(Boolean);
+}
+
+function extractLocalHighlight(conv) {
+  const lines = studentUtterances(conv);
+  if (!lines.length) return '';
+  const subjective = ['평화', '생동감', '산뜻', '경쾌', '자연스럽', '행복', '어두', '밝', '좋', '슬프', '무섭', '따뜻', '차갑'];
+  let best = '';
+  let bestScore = -1;
+  for (const line of lines) {
+    const parts = line.split(/[.!?。！？,，]| 그리고 | 그런데 | 하지만 | 그래서 | 왜냐하면 /).map(p => p.trim()).filter(Boolean);
+    for (const part of parts.length ? parts : [line]) {
+      const text = part.length > 42 ? part.slice(0, 42) : part;
+      if (text.length < 4) continue;
+      let score = Math.min(text.length, 32);
+      subjective.forEach(w => { if (text.includes(w)) score += 18; });
+      if (score > bestScore) { best = text; bestScore = score; }
+    }
+  }
+  return best || lines[0].slice(0, 42);
+}
+
+function renderMarkedText(text, quote) {
+  const source = String(text || '');
+  const q = String(quote || '').trim();
+  if (!q || !source.includes(q)) return escHtml(source);
+  return source.split(q).map(escHtml).join(`<mark class="quote-mark">${escHtml(q)}</mark>`);
+}
+
+function renderConversationHtml(conv, highlight) {
+  const html = String(conv || '').split('\n').filter(l => l.trim()).map(l => {
+    if (l.startsWith('[학생]')) return `<div class="mini-bubble stu">${renderMarkedText(l.replace(/^\[학생\]\s*/, ''), highlight)}</div>`;
+    if (l.startsWith('[유니콘]')) return `<div class="mini-bubble bot">🦄 ${escHtml(l.replace(/^\[유니콘\]\s*/, ''))}</div>`;
+    return '';
+  }).join('');
+  return html || '<div style="font-size:12px;color:#999">저장된 대화가 없어요.</div>';
+}
+
+async function enrichCurrentBoardFromCsv(file) {
+  if (!file || enrichingCsv) return;
+  if (!currentUser) { toast('로그인이 필요해요'); return; }
+  if (!currentBoard) { toast('먼저 보드를 선택해주세요'); return; }
+
+  enrichingCsv = true;
+  const btn = document.getElementById('enrich-btn');
+  const oldText = btn.textContent;
+  btn.textContent = '보강 중...';
+  btn.disabled = true;
+
+  try {
+    const text = await file.text();
+    const rows = parseCSV(text);
+    if (rows.length < 2) throw new Error('CSV를 읽을 수 없어요');
+
+    const csvByStudent = new Map();
+    rows.slice(1).forEach(r => {
+      if (r.length < 9 || !r[0]) return;
+      csvByStudent.set(studentKey(r[0]), {
+        studentNum: r[0],
+        status: r[1] || '',
+        score: parseInt(r[2], 10) || 0,
+        stage: r[3] || '',
+        feedback: r[4] || '',
+        tip: r[5] || '',
+        start: r[6] || '',
+        end: r[7] || '',
+        conv: r[8] || ''
+      });
+    });
+
+    const targets = allResults.filter(r =>
+      (r.csvTitle || '미분류') === currentBoard &&
+      csvByStudent.has(studentKey(r.studentNum))
+    );
+
+    if (!targets.length) {
+      toast('현재 보드와 학생번호가 맞는 결과가 없어요');
+      return;
+    }
+
+    const ok = confirm(`현재 보드 "${currentBoard}"의 기존 결과 ${targets.length}개에 CSV 대화/단계/근거를 보강할까요?\n이미지는 다시 만들지 않습니다.`);
+    if (!ok) return;
+
+    const collection = db.collection('users').doc(currentUser.uid).collection('results');
+    const affectedStudents = new Set();
+    let updated = 0;
+
+    for (let i = 0; i < targets.length; i += 450) {
+      const batch = db.batch();
+      targets.slice(i, i + 450).forEach(r => {
+        const row = csvByStudent.get(studentKey(r.studentNum));
+        const scoreForStage = row.score || r.score || 0;
+        const stageLevel = normalizeStage(row.stage, scoreForStage);
+        const evidenceQuote = extractLocalHighlight(row.conv);
+        const patch = {
+          conv: row.conv,
+          stage: row.stage,
+          stageLevel,
+          status: row.status,
+          feedback: row.feedback,
+          tip: row.tip,
+          start: row.start,
+          end: row.end,
+          evidenceQuote,
+          highlightLabel: '',
+          stageNote: stageNoteFor({ stageLevel, stage: row.stage, score: scoreForStage }),
+          enrichedFromCsvAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        batch.update(collection.doc(r.id), patch);
+        Object.assign(r, patch);
+        affectedStudents.add(studentKey(r.studentNum));
+        updated++;
+      });
+      await batch.commit();
+    }
+
+    const roomCount = await refreshExistingRooms([...affectedStudents]);
+    renderBoards();
+    toast(`대화 보강 완료: ${updated}개${roomCount ? ` · 갤러리 방 ${roomCount}개 갱신` : ''}`);
+  } catch (e) {
+    console.error(e);
+    toast('CSV 보강 실패: ' + e.message);
+  } finally {
+    enrichingCsv = false;
+    btn.textContent = oldText;
+    btn.disabled = false;
+  }
+}
+
+async function refreshExistingRooms(studentNums) {
+  if (!studentNums.length) return 0;
+  const wanted = new Set(studentNums.map(studentKey));
+  let count = 0;
+  try {
+    const snap = await db.collection('users').doc(currentUser.uid).collection('studentRooms').get();
+    for (const doc of snap.docs) {
+      const key = studentKey(doc.id);
+      if (!wanted.has(key)) continue;
+      const code = doc.data().code;
+      if (!code) continue;
+      const paintings = allResults.filter(r => studentKey(r.studentNum || r.label || '?') === key);
+      await db.collection('rooms').doc(code).update({
+        paintings: buildPaintings({ paintings }),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      count++;
+    }
+  } catch (e) {
+    console.warn('갤러리 방 갱신 실패:', e);
+  }
+  return count;
 }
 
 function toast(msg) {
@@ -588,11 +909,18 @@ function renderGalBody() {
 function buildPaintings(s) {
   return s.paintings.map(r => ({
     studentNum: r.studentNum || '',
+    label: r.label || '',
     score: r.score || 0,
     imageUrl: r.imageUrl || '',
     imagePath: r.imagePath || '',
     promptKo: r.promptKo || '',
     promptEn: r.promptEn || '',
+    conv: r.conv || '',
+    stage: r.stage || '',
+    stageLevel: r.stageLevel || normalizeStage(r.stage, r.score),
+    evidenceQuote: r.evidenceQuote || '',
+    highlightLabel: r.highlightLabel || '',
+    stageNote: r.stageNote || '',
     csvTitle: r.csvTitle || '',
   }));
 }
