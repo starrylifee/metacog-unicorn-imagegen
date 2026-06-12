@@ -640,13 +640,14 @@ async function extractPrompt(s, apiKey) {
 
 Rules:
 - Use only what the student actually said. Add no original artwork facts, no art history, no upgraded beauty.
-- If the student's words are sparse, the image prompt must stay sparse and incomplete.
+- If the student's words are sparse, the image prompt must stay sparse and incomplete. Express sparseness by omitting unmentioned elements, never by naming a style like "minimal" or "minimalist".
 - The image depth follows stage ${stageLevel}, not the score.
 - Stage 1: a rough draft with only named objects and colors. Leave unknown areas simple.
 - Stage 2: a literal reconstruction of the student's observed original: objects, colors, positions. No added emotion, story, symbolism, artist intention, or cinematic polish.
 - Stage 3: keep the literal reconstruction, then add artist intention or mood only if the student said it.
 - Stage 4: keep stages 2 and 3, then add the student's own values or personal judgment only if the student said it.
-- If people appear, describe them as flat color shapes or simple paper-collage figures. No realistic bodies, silhouettes, nudity, or partial nudity.
+- Use style words (minimal, illustration, abstract, watercolor, collage, etc.) only if the student explicitly said them. Otherwise add no style directives at all — write only what the student described.
+- People may appear as the student described them, but no nudity or partial nudity.
 - Choose one distinctive evidenceQuote from the student's exact Korean words, 4-40 Korean characters.
 
 Output JSON only:
