@@ -33,7 +33,7 @@ export default async function handler(req, res) {
   const reqBody = JSON.stringify({
     systemInstruction: { parts: [{ text: sys }] },
     contents: [{ role: 'user', parts: [{ text: `학생 ${studentNum}번, 점수 ${score}점, 도달단계 ${stageLevel}단계\n\n대화:\n${conv}` }] }],
-    generationConfig: { temperature: 0.7, maxOutputTokens: 2000, responseMimeType: 'application/json' }
+    generationConfig: { temperature: 0.7, maxOutputTokens: 4000, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } }
   });
 
   // 딜레이 없이 모델 폴백만 (Vercel 10초 타임아웃 준수)

@@ -220,6 +220,7 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.92);backdrop-
       <input type="file" id="enrich-csv-input" accept=".csv" style="display:none" onchange="enrichCurrentBoardFromCsv(this.files[0]);this.value=''">
       <button class="chip" id="board-zip-btn" onclick="downloadCurrentBoardImages()">회차 ZIP 다운로드</button>
       <button class="chip" id="gal-btn" onclick="openGalModal()">🖼 갤러리 코드</button>
+      <button class="chip" id="repair-btn" onclick="repairTruncatedPrompts()">🛠 잘린 프롬프트 복구</button>
     </div>
   </div>
 
@@ -377,6 +378,56 @@ function safePrompt(text) {
     } catch { return text; }
   }
   return text;
+}
+
+// 잘린 JSON 응답이 그대로 저장된 레코드인지 판별
+// (정상 레코드의 promptKo는 한국어 평문 → '{' 로 시작하지 않음)
+function promptBroken(r) {
+  const raw = (r.promptKo || r.promptEn || '').trim();
+  if (!raw) return false;
+  const shown = safePrompt(raw).trim();
+  return shown.startsWith('{') || shown.startsWith('```') || /"en"\s*:/.test(shown);
+}
+
+// 저장된 conv/score/stage 로 /api/prompt 를 다시 호출해 프롬프트 텍스트만 복구
+// (이미지는 그대로 두고 promptEn/promptKo 등만 갱신)
+async function repairTruncatedPrompts() {
+  if (!currentUser) { toast('로그인이 필요해요'); return; }
+  const broken = allResults.filter(promptBroken);
+  if (!broken.length) { toast('복구할 잘린 프롬프트가 없어요 ✅'); return; }
+  if (!confirm(`잘린 프롬프트 ${broken.length}건을 재생성합니다.\n이미지는 그대로 두고 프롬프트 텍스트만 새로 만듭니다.\n진행할까요?`)) return;
+
+  const btn = document.getElementById('repair-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '🛠 복구 중…'; }
+  let ok = 0, fail = 0;
+  for (const r of broken) {
+    try {
+      const res = await fetch('/api/prompt', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentNum: r.studentNum, score: r.score, stage: r.stage, conv: r.conv })
+      });
+      if (!res.ok) throw new Error('서버 ' + res.status);
+      const d = await res.json();
+      if (!d.prompt) throw new Error('빈 응답');
+      const update = {
+        promptEn: d.prompt,
+        promptKo: d.promptKo || d.prompt,
+        evidenceQuote: d.evidenceQuote || r.evidenceQuote || '',
+        highlightLabel: d.highlightLabel || r.highlightLabel || '',
+        stageNote: d.stageNote || r.stageNote || ''
+      };
+      await db.collection('users').doc(currentUser.uid).collection('results').doc(r.id).update(update);
+      Object.assign(r, update);
+      ok++;
+      if (btn) btn.textContent = `🛠 복구 중… ${ok}/${broken.length}`;
+    } catch (e) {
+      console.error('복구 실패', r.id, e);
+      fail++;
+    }
+  }
+  renderBoards();
+  if (btn) { btn.disabled = false; btn.textContent = '🛠 잘린 프롬프트 복구'; }
+  toast(`복구 완료: 성공 ${ok}건${fail ? `, 실패 ${fail}건` : ''}`);
 }
 
 function parseCSV(t) {
