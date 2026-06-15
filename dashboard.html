@@ -295,6 +295,7 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.92);backdrop-
         </div>
         <div class="detail-actions">
           <button class="btn btn-dark btn-sm" id="m-dl-btn">💾 다운로드</button>
+          <button class="btn btn-out btn-sm" id="m-regen-btn">🎨 이미지 다시 그리기</button>
           <button class="del-btn" id="m-del-btn">🗑 삭제</button>
           <span class="saved-dot" id="m-saved">✓ 저장됨</span>
         </div>
@@ -428,6 +429,54 @@ async function repairTruncatedPrompts() {
   renderBoards();
   if (btn) { btn.disabled = false; btn.textContent = '🛠 잘린 프롬프트 복구'; }
   toast(`복구 완료: 성공 ${ok}건${fail ? `, 실패 ${fail}건` : ''}`);
+}
+
+function base64ToBlob(b64, mime) {
+  const bytes = atob(b64);
+  const arr = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+// 저장된 영어 프롬프트로 이미지를 새로 그려 Storage 의 기존 이미지를 교체
+async function regenImage(docId) {
+  if (!currentUser) { toast('로그인이 필요해요'); return; }
+  const r = allResults.find(x => x.id === docId);
+  if (!r) return;
+  const prompt = r.promptEn || r.promptKo;
+  if (!prompt) { toast('프롬프트가 없어요 — 먼저 프롬프트 복구를 해주세요'); return; }
+  if (!confirm('이 학생의 이미지를 프롬프트 기준으로 새로 그립니다.\n기존 이미지는 새 이미지로 교체돼요. 진행할까요?')) return;
+
+  const btn = document.getElementById('m-regen-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '🎨 그리는 중…'; }
+  try {
+    const res = await fetch('/api/image', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e?.error || `서버 ${res.status}`); }
+    const img = await res.json();
+    if (!img.data) throw new Error('이미지 데이터를 받지 못했어요');
+
+    const oldPath = r.imagePath;
+    const newPath = `users/${currentUser.uid}/${Date.now()}_${r.studentNum || 'x'}.png`;
+    const snap = await storage.ref(newPath).put(base64ToBlob(img.data, img.mime));
+    const imageUrl = await snap.ref.getDownloadURL();
+
+    await db.collection('users').doc(currentUser.uid).collection('results').doc(docId).update({ imageUrl, imagePath: newPath });
+    Object.assign(r, { imageUrl, imagePath: newPath });
+    if (oldPath && oldPath !== newPath) await storage.ref(oldPath).delete().catch(() => {});
+
+    const m = document.getElementById('m-img');
+    if (m) { m.src = imageUrl; m.style.display = ''; }
+    renderBoards();
+    toast('🎨 이미지를 새로 그렸어요!');
+  } catch (e) {
+    console.error('이미지 재생성 실패', e);
+    toast('이미지 재생성 실패: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🎨 이미지 다시 그리기'; }
+  }
 }
 
 function parseCSV(t) {
@@ -891,6 +940,7 @@ function openDetail(docId) {
 
   document.getElementById('m-memo').onblur = () => saveMemo(docId, document.getElementById('m-memo').value);
   document.getElementById('m-dl-btn').onclick = () => downloadImage(r);
+  document.getElementById('m-regen-btn').onclick = () => regenImage(docId);
   document.getElementById('m-del-btn').onclick = () => deleteResult(docId, r.imagePath);
 
   document.getElementById('modal-bg').classList.add('on');
