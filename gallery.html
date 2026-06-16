@@ -229,6 +229,7 @@ async function initScene(paintings, studentName){
   raycaster.far=3.5;
 
   buildRoom(studentName);
+  placeAchievementFrame(paintings, studentName);
   await loadPaintings(paintings);
 
   document.getElementById('loading').style.display='none';
@@ -346,21 +347,36 @@ function buildRoom(label){
 
 /* ── painting slots ── */
 function getSlots(n){
-  // 그림 수에 따라 크기·간격 자동 결정
-  const ps = n<=20 ? 1.4 : n<=56 ? 1.2 : 1.0;
-  const sp = ps + 0.9; // 중심 간격
-  const perRow = Math.floor((D-2)/sp); // 벽 하나당 한 행에 걸 수 있는 수
-
   const wallDefs=[
     {ry:0,          pos:(o,y)=>new THREE.Vector3(o,y,-D/2+0.015)},
     {ry:-Math.PI/2, pos:(o,y)=>new THREE.Vector3(W/2-0.015,y,o)},
     {ry:Math.PI,    pos:(o,y)=>new THREE.Vector3(o,y,D/2-0.015)},
     {ry:Math.PI/2,  pos:(o,y)=>new THREE.Vector3(-W/2+0.015,y,o)},
   ];
+  const perRowOf=ps=>Math.max(1, Math.floor((D-2)/(ps+0.9)));
 
-  // 1열로 부족하면 2열 (아래 y=1.4, 위 y=3.2)
-  const rowYs = n <= perRow*4 ? [2.1] : [1.4, 3.2];
+  // 그림 수에 따라 크기·간격 자동 결정 (64개까지 기존 동작 유지)
+  let ps = n<=20 ? 1.4 : n<=56 ? 1.2 : 1.0;
+  let perRow = perRowOf(ps);
+  let rowYs;
 
+  if(n <= perRow*4)        rowYs = [2.1];            // 1단 (눈높이)
+  else if(n <= perRow*8)   rowYs = [1.4, 3.2];       // 2단 (아래·위)
+  else {
+    // ── 넘침 처리: 프레임을 줄여 3단으로 쌓기 ──
+    const stacks=[
+      {ps:0.85, rowYs:[1.25, 2.15, 3.05]},
+      {ps:0.70, rowYs:[1.20, 2.12, 3.05]},
+      {ps:0.58, rowYs:[1.15, 2.10, 3.05]},  // 안전망(아주 다작인 경우)
+    ];
+    let chosen = stacks[stacks.length-1];
+    for(const s of stacks){
+      if(n <= perRowOf(s.ps)*4*s.rowYs.length){ chosen=s; break; }
+    }
+    ps = chosen.ps; rowYs = chosen.rowYs; perRow = perRowOf(ps);
+  }
+
+  const sp = ps + 0.9; // 중심 간격
   const slots=[];
   outer: for(const y of rowYs){
     for(const wall of wallDefs){
@@ -466,6 +482,109 @@ function makeLabel(data){
   c.fillStyle='#C8FA4C'; c.font='22px Inter, system-ui';
   c.fillText(`${emoji} ${word}`, 256, 58);
   return new THREE.CanvasTexture(cv);
+}
+
+/* ── achievement graph (framed in landing corner) ── */
+function roundRect(c,x,y,w,h,r){
+  r=Math.min(r,w/2,h/2);
+  c.beginPath();
+  c.moveTo(x+r,y);
+  c.arcTo(x+w,y,x+w,y+h,r);
+  c.arcTo(x+w,y+h,x,y+h,r);
+  c.arcTo(x,y+h,x,y,r);
+  c.arcTo(x,y,x+w,y,r);
+  c.closePath();
+}
+
+function makeAchievementTexture(paintings, label){
+  const cw=1024, ch=640;
+  const cv=document.createElement('canvas'); cv.width=cw; cv.height=ch;
+  const c=cv.getContext('2d');
+  c.fillStyle='#14121f'; c.fillRect(0,0,cw,ch);
+  c.strokeStyle='rgba(200,250,76,.30)'; c.lineWidth=3; c.strokeRect(7,7,cw-14,ch-14);
+
+  const scores=paintings.map(p=>Math.min(Math.max(p.score||0,0),10));
+  const stages=paintings.map(p=>p.stageLevel||normalizeStage(p.stage,p.score));
+  const n=scores.length;
+  const avg=n?scores.reduce((a,b)=>a+b,0)/n:0;
+  const maxStage=n?Math.max(...stages):0;
+
+  // Header
+  c.textAlign='left'; c.textBaseline='alphabetic';
+  c.fillStyle='#fff'; c.font='bold 46px Inter, system-ui';
+  c.fillText(`🏆 ${label}번 성취 기록`, 44, 74);
+  c.fillStyle='#C8FA4C'; c.font='28px Inter, system-ui';
+  c.fillText(`작품 ${n}개   ·   평균 ${avg.toFixed(1)}점   ·   최고 ${maxStage}단계`, 46, 116);
+
+  // Plot area
+  const plotL=78, plotR=cw-52, plotT=164, plotB=ch-96;
+  const plotW=plotR-plotL, plotH=plotB-plotT;
+  c.strokeStyle='rgba(255,255,255,.10)'; c.lineWidth=1;
+  c.font='18px Inter, system-ui';
+  [0,5,10].forEach(v=>{
+    const y=plotB-(v/10)*plotH;
+    c.beginPath(); c.moveTo(plotL,y); c.lineTo(plotR,y); c.stroke();
+    c.fillStyle='rgba(255,255,255,.40)'; c.textAlign='right'; c.fillText(v, plotL-10, y+6);
+  });
+
+  // Bars (score, colored by Feldman stage)
+  const stageColor={1:'#5a6b3a',2:'#8aa83e',3:'#aee04a',4:'#C8FA4C'};
+  const slotW=plotW/Math.max(n,1);
+  const barW=Math.min(slotW*0.58, 58);
+  scores.forEach((s,i)=>{
+    const cx=plotL+slotW*(i+0.5);
+    const bh=(s/10)*plotH;
+    const x=cx-barW/2, y=plotB-bh;
+    c.fillStyle=stageColor[stages[i]]||'#8aa83e';
+    roundRect(c,x,y,barW,Math.max(bh,3),8); c.fill();
+    c.fillStyle='#fff'; c.font='bold 21px Inter, system-ui'; c.textAlign='center';
+    c.fillText(s, cx, y-9);
+    c.fillStyle='rgba(255,255,255,.45)'; c.font='15px Inter, system-ui';
+    const lab=String(paintings[i].csvTitle||(i+1)).slice(0,9);
+    c.fillText(lab, cx, plotB+26);
+  });
+
+  // Stage legend
+  c.textAlign='left'; c.font='16px Inter, system-ui';
+  let lx=plotL;
+  [[1,'1단계'],[2,'2단계'],[3,'3단계'],[4,'4단계']].forEach(([st,t])=>{
+    c.fillStyle=stageColor[st]; roundRect(c,lx,ch-44,20,12,4); c.fill();
+    c.fillStyle='rgba(255,255,255,.55)'; c.fillText(t, lx+27, ch-33);
+    lx+=120;
+  });
+
+  return new THREE.CanvasTexture(cv);
+}
+
+function placeAchievementFrame(paintings, label){
+  const fw=2.5, fh=1.56, ry=0;          // north wall, faces +z
+  const z=-D/2+0.02, x=-W/2+1.7, y=1.62; // left corner, clear of centered painting slots
+  const pos=new THREE.Vector3(x,y,z);
+
+  const frame=new THREE.Mesh(
+    new THREE.BoxGeometry(fw+0.12, fh+0.12, 0.07),
+    new THREE.MeshStandardMaterial({color:0x7a5a20, roughness:0.32, metalness:0.55})
+  );
+  frame.position.copy(pos); frame.rotation.y=ry; scene.add(frame);
+
+  const mount=new THREE.Mesh(
+    new THREE.PlaneGeometry(fw+0.06, fh+0.06),
+    new THREE.MeshStandardMaterial({color:0x0c0a14, roughness:1})
+  );
+  mount.position.copy(pos); mount.rotation.y=ry; nudge(mount,ry,0.04); scene.add(mount);
+
+  const graph=new THREE.Mesh(
+    new THREE.PlaneGeometry(fw, fh),
+    new THREE.MeshStandardMaterial({map:makeAchievementTexture(paintings,label),roughness:0.9,metalness:0,emissive:new THREE.Color(0x20201a),emissiveIntensity:0.28})
+  );
+  graph.position.copy(pos); graph.rotation.y=ry; nudge(graph,ry,0.045); scene.add(graph);
+
+  const plate=new THREE.Mesh(
+    new THREE.PlaneGeometry(fw, 0.22),
+    new THREE.MeshBasicMaterial({map:makeTextTexture('🏆 나의 성취 그래프',512,72,30,'#C8FA4C'),transparent:true})
+  );
+  plate.position.copy(pos); plate.rotation.y=ry; plate.position.y=pos.y-fh/2-0.18;
+  nudge(plate,ry,0.045); scene.add(plate);
 }
 
 function imgUrl(url){
