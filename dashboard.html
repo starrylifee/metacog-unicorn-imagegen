@@ -221,6 +221,7 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.92);backdrop-
       <button class="chip" id="board-zip-btn" onclick="downloadCurrentBoardImages()">회차 ZIP 다운로드</button>
       <button class="chip" id="gal-btn" onclick="openGalModal()">🖼 갤러리 코드</button>
       <button class="chip" id="repair-btn" onclick="repairTruncatedPrompts()">🛠 잘린 프롬프트 복구</button>
+      <button class="chip" id="board-del-btn" onclick="deleteCurrentBoard()" style="color:#c0392b;border-color:#e8b4ad">🗑 회차 전체 삭제</button>
     </div>
   </div>
 
@@ -1078,6 +1079,61 @@ async function deleteResult(docId, imagePath) {
     toast('삭제 완료');
   } catch(e) {
     toast('삭제 실패: ' + e.message);
+  }
+}
+
+async function deleteCurrentBoard() {
+  if (!currentBoard) { toast('먼저 회차를 선택해주세요'); return; }
+  const title = currentBoard;
+  const items = currentBoardItems();
+  const analyticsForBoard = allAnalytics.filter(a => (a.csvTitle || '미분류') === title);
+  const n = items.length;
+  if (!n && !analyticsForBoard.length) { toast('삭제할 항목이 없어요'); return; }
+
+  if (!confirm(`"${title}" 회차를 통째로 삭제할까요?\n\n· 이미지 결과 ${n}개\n· 분석 기록 ${analyticsForBoard.length}개\n\n이 작업은 되돌릴 수 없어요.`)) return;
+  if (n >= 1 && !confirm(`정말 이미지 ${n}개를 영구 삭제합니다. 계속할까요?`)) return;
+
+  const btn = document.getElementById('board-del-btn');
+  const oldText = btn.textContent;
+  btn.disabled = true;
+
+  try {
+    const userRef = db.collection('users').doc(currentUser.uid);
+
+    // 1) 스토리지 이미지 삭제 (best-effort)
+    let done = 0;
+    for (const r of items) {
+      btn.textContent = `삭제 ${++done}/${n}`;
+      if (r.imagePath) await storage.ref(r.imagePath).delete().catch(() => {});
+    }
+
+    // 2) Firestore 문서 삭제 (results + analytics, 배치)
+    const refs = [
+      ...items.map(r => userRef.collection('results').doc(r.id)),
+      ...analyticsForBoard.map(a => userRef.collection('analytics').doc(a.id)),
+    ];
+    for (let i = 0; i < refs.length; i += 400) {
+      const batch = db.batch();
+      refs.slice(i, i + 400).forEach(ref => batch.delete(ref));
+      await batch.commit();
+    }
+
+    // 3) 로컬 상태 갱신 후 재렌더
+    const removedResults = new Set(items.map(r => r.id));
+    const removedAnalytics = new Set(analyticsForBoard.map(a => a.id));
+    allResults = allResults.filter(r => !removedResults.has(r.id));
+    allAnalytics = allAnalytics.filter(a => !removedAnalytics.has(a.id));
+    currentBoard = '';
+    const sel = document.getElementById('board-select');
+    while (sel.options.length) sel.remove(0);
+    renderBoards();
+    renderAnalytics();
+    toast(`"${title}" 회차 삭제 완료`);
+  } catch (e) {
+    toast('삭제 실패: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = oldText;
   }
 }
 

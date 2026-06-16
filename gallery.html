@@ -229,7 +229,7 @@ async function initScene(paintings, studentName){
   raycaster.far=3.5;
 
   buildRoom(studentName);
-  placeAchievementFrame(paintings, studentName);
+  placeAchievementStand(paintings, studentName);
   await loadPaintings(paintings);
 
   document.getElementById('loading').style.display='none';
@@ -556,35 +556,58 @@ function makeAchievementTexture(paintings, label){
   return new THREE.CanvasTexture(cv);
 }
 
-function placeAchievementFrame(paintings, label){
-  const fw=2.5, fh=1.56, ry=0;          // north wall, faces +z
-  const z=-D/2+0.02, x=-W/2+1.7, y=1.62; // left corner, clear of centered painting slots
-  const pos=new THREE.Vector3(x,y,z);
+// 방 중앙에 세우는 독립 입간판(그림 슬롯과 절대 안 겹침)
+function placeAchievementStand(paintings, label){
+  const boardW=2.6, boardH=1.62;     // 캔버스 비율 1.6에 맞춤
+  const boardY=1.5;                  // 보드 중심(눈높이)
+  const cx=0, cz=0;                  // 방 중앙
+  const topY=boardY+boardH/2+0.12;   // 기둥/프레임 상단
 
-  const frame=new THREE.Mesh(
-    new THREE.BoxGeometry(fw+0.12, fh+0.12, 0.07),
-    new THREE.MeshStandardMaterial({color:0x7a5a20, roughness:0.32, metalness:0.55})
-  );
-  frame.position.copy(pos); frame.rotation.y=ry; scene.add(frame);
+  const group=new THREE.Group();
+  group.position.set(cx,0,cz);
 
-  const mount=new THREE.Mesh(
-    new THREE.PlaneGeometry(fw+0.06, fh+0.06),
-    new THREE.MeshStandardMaterial({color:0x0c0a14, roughness:1})
-  );
-  mount.position.copy(pos); mount.rotation.y=ry; nudge(mount,ry,0.04); scene.add(mount);
+  const metalMat=new THREE.MeshStandardMaterial({color:0x7a5a20,roughness:0.32,metalness:0.55});
+  const darkMat =new THREE.MeshStandardMaterial({color:0x1a1622,roughness:0.6,metalness:0.2});
 
+  // 바닥 받침대
+  const base=new THREE.Mesh(new THREE.BoxGeometry(boardW+0.5,0.12,0.62),darkMat);
+  base.position.y=0.06; base.castShadow=true; base.receiveShadow=true; group.add(base);
+
+  // 양옆 기둥 (바닥 → 상단)
+  [-1,1].forEach(s=>{
+    const post=new THREE.Mesh(new THREE.BoxGeometry(0.1,topY,0.1),metalMat);
+    post.position.set(s*(boardW/2+0.06),topY/2,0); post.castShadow=true; group.add(post);
+  });
+  // 상단 가로바
+  const topBar=new THREE.Mesh(new THREE.BoxGeometry(boardW+0.32,0.1,0.1),metalMat);
+  topBar.position.set(0,topY,0); group.add(topBar);
+
+  // 보드 프레임 + 뒷판
+  const frame=new THREE.Mesh(new THREE.BoxGeometry(boardW+0.14,boardH+0.14,0.1),metalMat.clone());
+  frame.position.set(0,boardY,0); frame.castShadow=true; group.add(frame);
+
+  // 그래프(앞면, +z 방향 = 입장 시 보이는 쪽)
   const graph=new THREE.Mesh(
-    new THREE.PlaneGeometry(fw, fh),
-    new THREE.MeshStandardMaterial({map:makeAchievementTexture(paintings,label),roughness:0.9,metalness:0,emissive:new THREE.Color(0x20201a),emissiveIntensity:0.28})
+    new THREE.PlaneGeometry(boardW,boardH),
+    new THREE.MeshStandardMaterial({map:makeAchievementTexture(paintings,label),roughness:0.9,metalness:0,emissive:new THREE.Color(0x20201a),emissiveIntensity:0.3})
   );
-  graph.position.copy(pos); graph.rotation.y=ry; nudge(graph,ry,0.045); scene.add(graph);
+  graph.position.set(0,boardY,0.055); group.add(graph);
 
-  const plate=new THREE.Mesh(
-    new THREE.PlaneGeometry(fw, 0.22),
-    new THREE.MeshBasicMaterial({map:makeTextTexture('🏆 나의 성취 그래프',512,72,30,'#C8FA4C'),transparent:true})
+  // 뒷면(어두운 사인 백)
+  const back=new THREE.Mesh(
+    new THREE.PlaneGeometry(boardW,boardH),
+    new THREE.MeshStandardMaterial({color:0x12101a,roughness:1})
   );
-  plate.position.copy(pos); plate.rotation.y=ry; plate.position.y=pos.y-fh/2-0.18;
-  nudge(plate,ry,0.045); scene.add(plate);
+  back.position.set(0,boardY,-0.055); back.rotation.y=Math.PI; group.add(back);
+
+  // 받침대 명패
+  const plate=new THREE.Mesh(
+    new THREE.PlaneGeometry(boardW,0.2),
+    new THREE.MeshBasicMaterial({map:makeTextTexture('🏆 나의 성취 그래프',512,64,28,'#C8FA4C'),transparent:true})
+  );
+  plate.position.set(0,boardY-boardH/2-0.16,0.06); group.add(plate);
+
+  scene.add(group);
 }
 
 function imgUrl(url){
