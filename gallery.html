@@ -528,14 +528,14 @@ function makeAchievementTexture(paintings, label){
   });
 
   // Bars (score, colored by Feldman stage)
-  const stageColor={1:'#5a6b3a',2:'#8aa83e',3:'#aee04a',4:'#C8FA4C'};
+  const stageColor={1:'#e74c3c',2:'#f1c40f',3:'#2ecc71',4:'#3498db'}; // 빨·노·초·파
   const slotW=plotW/Math.max(n,1);
   const barW=Math.min(slotW*0.58, 58);
   scores.forEach((s,i)=>{
     const cx=plotL+slotW*(i+0.5);
     const bh=(s/10)*plotH;
     const x=cx-barW/2, y=plotB-bh;
-    c.fillStyle=stageColor[stages[i]]||'#8aa83e';
+    c.fillStyle=stageColor[stages[i]]||'#f1c40f';
     roundRect(c,x,y,barW,Math.max(bh,3),8); c.fill();
     c.fillStyle='#fff'; c.font='bold 21px Inter, system-ui'; c.textAlign='center';
     c.fillText(s, cx, y-9);
